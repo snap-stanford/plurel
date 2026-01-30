@@ -42,7 +42,7 @@ db = dataset.make_db()
 
 ### Synthesize from SQL schema
 
-### 1. Prepare a SQL Schema
+#### 1. Prepare a SQL Schema
 
 Prepare a `schema.sql` file:
 
@@ -61,7 +61,7 @@ CREATE TABLE orders (
 );
 ```
 
-### 2. Synthesize features
+#### 2. Synthesize features
 
 ```py
 from plurel.dataset import SyntheticDataset
