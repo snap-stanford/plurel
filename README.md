@@ -6,8 +6,12 @@ Synthetic Data unlocks Scaling Laws for Relational Foundation Models
 </div>
 <br>
 
+## Framework Design
 
-## 1. Setup
+<img src="assets/plurel.png" alt="PluRel Logo"/>
+
+
+## Setup
 
 Setup the environment with [pixi](https://pixi.sh/latest/installation/)
 
@@ -23,7 +27,7 @@ $ pixi run pytest
 ```
 
 
-### 2. Synthesize relational data from scratch
+### Synthesize relational data from scratch
 
 - The `SyntheticDataset` class can be used to create [relbench](https://github.com/snap-stanford/relbench) compatible dataset objects.
 - It only requires a `seed` and a `Config` object that contains `database`, `scm` and `dag` level params for sampling. See example below.
@@ -53,7 +57,7 @@ class SCMParams:
 ```
 
 
-### 3. Synthesize from SQL schema
+### Synthesize from SQL schema
 
 Prepare a `schema.sql` file:
 
