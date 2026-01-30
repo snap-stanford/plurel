@@ -7,6 +7,9 @@ version = "0.1.0"
 build-backend = "hatchling.build"
 requires = ["hatchling"]
 
+[tool.setuptools.packages.find]
+where = ["."]
+
 [tool.pixi.workspace]
 channels = ["conda-forge"]
 platforms = ["linux-64", "osx-arm64"]
@@ -22,4 +25,7 @@ pytest-xdist = ">=3.8.0,<4"
 pytest-sugar = ">=1.1.1,<2"
 sqlalchemy = ">=2.0.45,<3"
 pytest-env = ">=1.2.0,<2"
+ipython = ">=9.9.0,<10"
+pip = ">=25.3,<26"
+
 
