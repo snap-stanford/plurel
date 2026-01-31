@@ -16,8 +16,86 @@ from sqlalchemy import (
     Enum as SAEnum,
 )
 
+from plurel.dag import DAG_REGISTRY
+from plurel.config import Config
 
-class SQLAlchemySchemaGraphBuilder:
+
+class RandomSchemaGraphBuilder:
+    def __init__(self, config: Config, num_tables: int, seed: int):
+        self.config = config
+        self.num_tables = num_tables
+        self.seed = seed
+
+    def build_graph(self) -> nx.DiGraph:
+        """
+        Each table will have the following attributes:
+        ```py
+        {
+            "columns":dict[col_name -> {
+                "stype": stype,
+                "categories": list[str] | None
+            }],
+            "pkey_col": str | None,
+            "fkey_col_to_pkey_table": dict[str, str],
+        }
+        ```
+        """
+        dag_class = self.config.database_params.table_layout_choices.sample_uniform()
+        dag = DAG_REGISTRY[dag_class](
+            num_nodes=self.num_tables, dag_params=self.config.dag_params, seed=self.seed
+        )
+        G = dag.graph
+
+        for table_id in G.nodes:
+            G.nodes[table_id]["name"] = f"table_{table_id}"
+
+        for table_id in G.nodes:
+            # most tables are narrow with few being wide
+            num_cols = self.config.database_params.num_cols_choices.sample_pl()
+            feature_cols = [f"feature_{idx}" for idx in range(num_cols)]
+            pkey_col = "row_idx"
+            fkey_col_to_pkey_table = {
+                f"foreign_row_{idx}": G.nodes[parent_table_id]["name"]
+                for idx, parent_table_id in enumerate(
+                    sorted(list(G.predecessors(table_id)))
+                )
+            }
+            fkey_cols = list(fkey_col_to_pkey_table.keys())
+
+            columns = {}
+            for col in [pkey_col, *fkey_cols]:
+                _stype = stype.categorical
+                columns[col] = {
+                    "_stype": stype.categorical,
+                    "categories": None,  # since these are pk/fk
+                }
+
+            for feature_col in feature_cols:
+                _stype = self.config.scm_params.col_stype_choices.sample_uniform()
+                if _stype == stype.categorical:
+                    num_categories = (
+                        self.config.scm_params.num_categories_choices.sample_uniform()
+                    )
+                    categories = list(range(num_categories))
+                else:
+                    categories = None
+                columns[feature_col] = {
+                    "_stype": _stype,
+                    "categories": categories,
+                }
+
+            metadata = {
+                "columns": columns,
+                "pkey_col": pkey_col,
+                "fkey_col_to_pkey_table": fkey_col_to_pkey_table,
+            }
+            for k, v in metadata.items():
+                G.nodes[table_id][k] = v
+
+        return G
+
+
+class SQLSchemaGraphBuilder:
     def __init__(self, sql_file: str):
         self.sql_file = sql_file
         self.metadata = MetaData()

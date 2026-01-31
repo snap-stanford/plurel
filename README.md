@@ -43,19 +43,6 @@ dataset = SyntheticDataset(seed=0, config=Config())
 db = dataset.make_db()
 ```
 
-The `Config` object is a collection of constants as well as `Choices` from which values can be sampled uniformly at random. For instance: the `scm_layout_choices` indicates that the layout can be selected at random from the four available choices. Similarly, `Choices` also supports sampling from a `"range"` of values (see `scm_col_node_perc_choices` in snippet below.)
-
-```py
-@dataclass(frozen=True)
-class SCMParams:
-    ...
-    scm_layout_choices: Choices = Choices(
-        kind="set",
-        value=["ErdosRenyi", "BarabasiAlbert", "RandomTree", "ReverseRandomTree"],
-    )
-    scm_col_node_perc_choices: Choices = Choices(kind="range", value=[0.3, 0.9])
-```
-
 
 ### Synthesize from SQL schema
 

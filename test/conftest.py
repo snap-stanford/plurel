@@ -1,7 +1,7 @@
 from pathlib import Path
 
 import pytest
-from plurel.sql_parser import SQLAlchemySchemaGraphBuilder
+from plurel.schema import SQLSchemaGraphBuilder
 
 
 @pytest.fixture
@@ -40,13 +40,13 @@ def schema_sql(tmp_path: Path):
 
 @pytest.fixture
 def parsed_tables(schema_sql):
-    builder = SQLAlchemySchemaGraphBuilder(str(schema_sql))
+    builder = SQLSchemaGraphBuilder(str(schema_sql))
     builder.load_schema()
     return builder.tables
 
 
 @pytest.fixture
 def schema_graph(parsed_tables, schema_sql):
-    builder = SQLAlchemySchemaGraphBuilder(str(schema_sql))
+    builder = SQLSchemaGraphBuilder(str(schema_sql))
     builder.tables = parsed_tables
     return builder.build_graph()

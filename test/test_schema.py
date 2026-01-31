@@ -3,7 +3,7 @@ import networkx as nx
 from pathlib import Path
 
 from torch_frame import stype
-from plurel.sql_parser import SQLAlchemySchemaGraphBuilder
+from plurel.schema import SQLSchemaGraphBuilder
 
 
 def test_tables_present(parsed_tables):
@@ -139,7 +139,7 @@ def test_enum_columns_present_in_graph(schema_graph):
 
 
 def test_build_graph_without_loading():
-    builder = SQLAlchemySchemaGraphBuilder("does_not_matter.sql")
+    builder = SQLSchemaGraphBuilder("does_not_matter.sql")
 
     with pytest.raises(ValueError, match="Schema not loaded"):
         builder.build_graph()
@@ -156,7 +156,7 @@ def test_composite_primary_key_not_supported(tmp_path: Path):
     path = tmp_path / "bad.sql"
     path.write_text(sql)
 
-    builder = SQLAlchemySchemaGraphBuilder(str(path))
+    builder = SQLSchemaGraphBuilder(str(path))
 
     with pytest.raises(ValueError, match="Composite primary keys not supported"):
         builder.load_schema()

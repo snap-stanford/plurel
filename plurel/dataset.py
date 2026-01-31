@@ -12,7 +12,7 @@ from plurel.dag import DAG_REGISTRY
 from plurel.scm import SCM
 from plurel.utils import set_random_seed, TableType
 from plurel.config import Config
-from plurel.sql_parser import SQLAlchemySchemaGraphBuilder
+from plurel.schema import SQLSchemaGraphBuilder, RandomSchemaGraphBuilder
 
 
 class SyntheticDataset(Dataset):
@@ -60,62 +60,13 @@ class SyntheticDataset(Dataset):
         }
         ```
         """
-        dag_class = self.config.database_params.table_layout_choices.sample_uniform()
-        dag = DAG_REGISTRY[dag_class](
-            num_nodes=num_tables, dag_params=self.config.dag_params, seed=self.seed
+        builder = RandomSchemaGraphBuilder(
+            config=self.config, num_tables=num_tables, seed=self.seed
         )
-        table_relationships = dag.graph
-
-        for table_id in table_relationships.nodes:
-            table_relationships.nodes[table_id]["name"] = f"table_{table_id}"
-
-        for table_id in table_relationships.nodes:
-            # most tables are narrow with few being wide
-            num_cols = self.config.database_params.num_cols_choices.sample_pl()
-            feature_cols = [f"feature_{idx}" for idx in range(num_cols)]
-            pkey_col = "row_idx"
-            fkey_col_to_pkey_table = {
-                f"foreign_row_{idx}": table_relationships.nodes[parent_table_id]["name"]
-                for idx, parent_table_id in enumerate(
-                    sorted(list(table_relationships.predecessors(table_id)))
-                )
-            }
-            fkey_cols = list(fkey_col_to_pkey_table.keys())
-
-            columns = {}
-            for col in [pkey_col, *fkey_cols]:
-                _stype = stype.categorical
-                columns[col] = {
-                    "_stype": stype.categorical,
-                    "categories": None,  # since these are pk/fk
-                }
-
-            for feature_col in feature_cols:
-                _stype = self.config.scm_params.col_stype_choices.sample_uniform()
-                if _stype == stype.categorical:
-                    num_categories = (
-                        self.config.scm_params.num_categories_choices.sample_uniform()
-                    )
-                    categories = list(range(num_categories))
-                else:
-                    categories = None
-                columns[feature_col] = {
-                    "_stype": _stype,
-                    "categories": categories,
-                }
-
-            metadata = {
-                "columns": columns,
-                "pkey_col": pkey_col,
-                "fkey_col_to_pkey_table": fkey_col_to_pkey_table,
-            }
-            for k, v in metadata.items():
-                table_relationships.nodes[table_id][k] = v
-
-        return table_relationships
+        return builder.build_graph()
 
     def _get_schema_file_table_relationships(self, schema_file: str):
-        builder = SQLAlchemySchemaGraphBuilder(sql_file=schema_file)
+        builder = SQLSchemaGraphBuilder(sql_file=schema_file)
         builder.load_schema()
         return builder.build_graph()
 
