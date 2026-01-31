@@ -33,8 +33,7 @@ $ pixi run pytest
 - It only requires a `seed` and a `Config` object that contains `database`, `scm` and `dag` level params for sampling. See example below.
 
 ```py
-from plurel.dataset import SyntheticDataset
-from plurel.config import Config
+from plurel import SyntheticDataset, Config
 
 # create relbench compatible dataset
 dataset = SyntheticDataset(seed=0, config=Config())
@@ -66,8 +65,7 @@ CREATE TABLE orders (
 Synthesize features with `plurel`
 
 ```py
-from plurel.dataset import SyntheticDataset
-from plurel.config import Config, DatabaseParams, Choices
+from plurel import SyntheticDataset, Config, DatabaseParams, Choices
 
 config = Config(
     database_params=DatabaseParams(
@@ -83,13 +81,21 @@ db = SyntheticDataset(seed=0, config=config).make_db()
 PluRel populates the tables with data from diverse distributions
 
 ```py
-# === synthesized orders table ===
+# === synthesized "orders" table ===
    order_id  user_id    amount order_type                       date
 0         0       27  0.450017     online 2014-09-08 00:00:00.000000
 1         1      132  0.450033    instore 2014-09-08 02:58:31.964238
 2         2       56  0.450052    instore 2014-09-08 05:57:03.928477
 3         3      113  0.450071     online 2014-09-08 08:55:35.892716
 4         4      127  0.450092    instore 2014-09-08 11:54:07.856955
+
+# === synthesized "users" table ===
+   user_id  status
+0        0  active
+1        1  banned
+2        2  active
+3        3  active
+4        4  active
 ```
 
 Checkout notebooks in `examples/` for exploration!
