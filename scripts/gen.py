@@ -1,9 +1,8 @@
 from pathlib import Path
 import argparse
-import subprocess
 
 from tqdm import tqdm
-from multiprocessing import Pool
+from multiprocessing import Pool, cpu_count
 
 from plurel.dataset import SyntheticDataset
 from plurel.config import Config
@@ -21,26 +20,33 @@ def generate_rel_synthetic_db(seed: int):
         seed=seed,
         config=Config(cache_dir=Path(f"~/.cache/relbench/{db_name}").expanduser()),
     )
+
     # generate and cache db in relbench format
     dataset.get_db()
-    return
 
 
-def main(seed_offset: int, num_dbs: int):
+def main(seed_offset: int, num_dbs: int, num_proc: int):
     seeds = [idx + seed_offset for idx in range(num_dbs)]
 
-    with Pool(100) as p:
-        list(tqdm(p.imap_unordered(generate_rel_synthetic_db, seeds), total=len(seeds)))
+    with Pool(processes=num_proc) as p:
+        list(
+            tqdm(
+                p.imap_unordered(generate_rel_synthetic_db, seeds),
+                total=len(seeds),
+            )
+        )
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Generate a synthetic dataset.")
+
     parser.add_argument(
         "--seed_offset",
         type=int,
         required=True,
-        help="seed offset for database generation. The dbs will be named rel-synthetic-<seed>",
+        help="Seed offset for database generation. DBs will be named rel-synthetic-<seed>.",
     )
+
     parser.add_argument(
         "--num_dbs",
         type=int,
@@ -48,5 +54,17 @@ if __name__ == "__main__":
         help="Number of databases to generate.",
     )
 
+    parser.add_argument(
+        "--num_proc",
+        type=int,
+        default=cpu_count(),
+        help="Number of parallel processes to use (default: number of CPU cores).",
+    )
+
     args = parser.parse_args()
-    main(seed_offset=args.seed_offset, num_dbs=args.num_dbs)
+
+    main(
+        seed_offset=args.seed_offset,
+        num_dbs=args.num_dbs,
+        num_proc=args.num_proc,
+    )
