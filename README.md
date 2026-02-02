@@ -43,6 +43,8 @@ dataset = SyntheticDataset(seed=0, config=Config())
 db = dataset.make_db()
 ```
 
+#### Scalable generation
+
 We also provide a multiprocessing-based script to generate databases in parallel.
 
 ```bash
