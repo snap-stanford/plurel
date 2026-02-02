@@ -3,6 +3,7 @@
   <p>
 Synthetic Data unlocks Scaling Laws for Relational Foundation Models
 </p>
+<img src="assets/scaling_law.png" alt="Scaling Law Plot"/>
 </div>
 <br>
 
