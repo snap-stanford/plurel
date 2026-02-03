@@ -59,7 +59,4 @@ if __name__ == "__main__":
             d_model=256,
             num_heads=8,
             d_ff=1024,
-            use_temporal_mask=False,
-            use_sw_attn=False,
-            sw_len=None,
         )

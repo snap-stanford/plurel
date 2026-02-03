@@ -116,14 +116,11 @@ class FFN(nn.Module):
 
 
 class RelationalBlock(nn.Module):
-    def __init__(self, d_model, num_heads, d_ff, use_sw_attn=False):
+    def __init__(self, d_model, num_heads, d_ff):
         super().__init__()
-        self.use_sw_attn = use_sw_attn
 
-        # Define attention types based on whether sw is enabled
+        # Define attention types
         self.attn_types = ["col", "feat", "nbr"]
-        if use_sw_attn:
-            self.attn_types.append("sw")
 
         self.norms = nn.ModuleDict(
             {l: nn.RMSNorm(d_model) for l in self.attn_types + ["ffn"]}
@@ -168,14 +165,8 @@ class RelationalTransformer(nn.Module):
         d_text,
         num_heads,
         d_ff,
-        use_temporal_mask=False,
-        use_sw_attn=False,
-        sw_len=None,
     ):
         super().__init__()
-        self.use_temporal_mask = use_temporal_mask
-        self.use_sw_attn = use_sw_attn
-        self.sw_len = sw_len
 
         self.enc_dict = nn.ModuleDict(
             {
@@ -210,10 +201,7 @@ class RelationalTransformer(nn.Module):
             }
         )
         self.blocks = nn.ModuleList(
-            [
-                RelationalBlock(d_model, num_heads, d_ff, use_sw_attn=use_sw_attn)
-                for i in range(num_blocks)
-            ]
+            [RelationalBlock(d_model, num_heads, d_ff) for i in range(num_blocks)]
         )
         self.norm_out = nn.RMSNorm(d_model)
         self.d_model = d_model
@@ -231,15 +219,6 @@ class RelationalTransformer(nn.Module):
 
         # Padding mask for attention pairs (allow only non-pad -> non-pad)
         pad = (~is_padding[:, :, None]) & (~is_padding[:, None, :])  # (B, S, S)
-
-        # Temporal mask: only allow attention to cells with timestamp <= query timestamp
-        if self.use_temporal_mask and "timestamps" in batch:
-            timestamps = batch["timestamps"]  # (B, S)
-            # kv timestamp must be <= query timestamp (broadcasted comparison)
-            temporal_mask = (
-                timestamps[:, None, :] <= timestamps[:, :, None]
-            )  # (B, S, S)
-            pad = pad & temporal_mask
 
         # cells in the same node
         same_node = node_idxs[:, :, None] == node_idxs[:, None, :]  # (B, S, S)
@@ -265,18 +244,6 @@ class RelationalTransformer(nn.Module):
             "nbr": q_in_f2p & pad,
             "col": same_col_table & pad,
         }
-
-        # Sliding window attention: token attends to previous k tokens based on timestamp ranks
-        if self.use_sw_attn:
-            if self.sw_len is None:
-                raise ValueError("sw_len must be specified when use_sw_attn=True")
-            if "timestamps" not in batch:
-                raise ValueError("timestamps must be in batch when use_sw_attn=True")
-
-            timestamps = batch["timestamps"]  # (B, S)
-            rank_diff = timestamps[:, :, None] - timestamps[:, None, :]  # (B, S, S)
-            sw_mask = (rank_diff >= 0) & (rank_diff <= self.sw_len)  # (B, S, S)
-            attn_masks["sw"] = sw_mask & pad
 
         # Make them contiguous for better kernel performance
         for l in attn_masks:

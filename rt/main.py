@@ -104,9 +104,6 @@ def main(
     d_model,
     num_heads,
     d_ff,
-    use_temporal_mask=False,
-    use_sw_attn=False,
-    sw_len=None,
 ):
     seed_everything(seed)
 
@@ -207,9 +204,6 @@ def main(
         d_text=d_text,
         num_heads=num_heads,
         d_ff=d_ff,
-        use_temporal_mask=use_temporal_mask,
-        use_sw_attn=use_sw_attn,
-        sw_len=sw_len,
     )
     if load_ckpt_path is not None:
         load_ckpt_path = Path(load_ckpt_path).expanduser()
