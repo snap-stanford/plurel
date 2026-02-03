@@ -2,6 +2,7 @@ import os
 import random
 import time
 from pathlib import Path
+from collections import defaultdict
 
 import numpy as np
 import torch
@@ -79,6 +80,7 @@ def main(
     train_tasks,
     eval_tasks,
     batch_size,
+    eval_batch_size,
     num_workers,
     ctx_len,
     max_local_ctx_len,
@@ -168,9 +170,11 @@ def main(
     eval_loaders = {}
     for db_name, table_name, target_column, columns_to_drop in eval_tasks:
         for split in eval_splits:
+            if "synthetic" in db_name and split == "test":
+                continue
             eval_dataset = RelationalDataset(
                 tasks=[(db_name, table_name, target_column, split, columns_to_drop)],
-                batch_size=batch_size,
+                batch_size=eval_batch_size if "synthetic" not in db_name else 10,
                 rank=rank,
                 world_size=world_size,
                 ctx_len=ctx_len,
@@ -195,6 +199,8 @@ def main(
                 pin_memory=True,
                 in_order=True,
             )
+
+    seed_everything(seed)
 
     net = RelationalTransformer(
         num_blocks=num_blocks,
@@ -254,6 +260,10 @@ def main(
             store.log("steps", steps)
 
         metrics = {"val": {}, "test": {}}
+        r2_scores = {"val": [], "test": []}
+        auc_scores = {"val": [], "test": []}
+        synthetic_db_losses = defaultdict(list)
+        relbench_db_losses = defaultdict(list)
         net.eval()
         with torch.inference_mode():
             for (
@@ -281,10 +291,11 @@ def main(
                 losses = []
                 eval_load_times = []
                 eval_loader = eval_loaders[(db_name, table_name, split)]
+                _max_eval_steps = max_eval_steps if "synthetic" not in db_name else 1
                 pbar = tqdm(
                     total=(
-                        min(max_eval_steps, len(eval_loader))
-                        if max_eval_steps > -1
+                        min(_max_eval_steps, len(eval_loader))
+                        if _max_eval_steps > -1
                         else len(eval_loader)
                     ),
                     desc=f"{db_name}/{table_name}/{split}",
@@ -307,6 +318,11 @@ def main(
                         eval_load_times.append(eval_load_time)
 
                     true_batch_size = batch.pop("true_batch_size")
+                    _eval_batch_size = (
+                        eval_batch_size if "synthetic" not in db_name else 10
+                    )
+                    if true_batch_size < _eval_batch_size:
+                        continue
                     for k in batch:
                         batch[k] = batch[k].to(device, non_blocking=True)
 
@@ -315,6 +331,10 @@ def main(
                     batch["is_padding"][true_batch_size:, :] = True
 
                     loss, yhat_dict = net(batch)
+                    if np.isnan(loss.detach().cpu().numpy()):
+                        print(
+                            f"loss is nan for batch_idx: {batch_idx} with true_batch_size: {true_batch_size}"
+                        )
 
                     if task_type == "clf":
                         yhat = yhat_dict["boolean"][batch["is_targets"]]
@@ -332,7 +352,7 @@ def main(
                     preds.append(pred)
                     labels.append(y)
 
-                    if max_eval_steps > -1 and batch_idx >= max_eval_steps:
+                    if _max_eval_steps > -1 and batch_idx >= _max_eval_steps:
                         break
 
                 eval_loader_iters[(db_name, table_name, split)] = iter(eval_loader)
@@ -342,7 +362,6 @@ def main(
                 labels = torch.cat(labels, dim=0)
 
                 if ddp:
-                    # ensure the predictions and labels are gathered jointly
                     preds = all_gather_nd(preds)
                     labels = all_gather_nd(labels)
                 else:
@@ -353,30 +372,71 @@ def main(
                     loss = sum(losses) / len(losses)
                     k = f"loss/{db_name}/{table_name}/{split}"
                     avg_eval_load_time = sum(eval_load_times) / len(eval_load_times)
+                    if "synthetic" in db_name:
+                        synthetic_db_losses[split].append(loss)
+                    else:
+                        wandb.log(
+                            {
+                                k: loss,
+                                f"avg_eval_load_time/{db_name}/{table_name}": avg_eval_load_time,
+                            },
+                            step=steps,
+                        )
+                        relbench_db_losses[split].append(loss)
+
+                        preds = torch.cat(preds, dim=0).float().cpu().numpy()
+                        labels = torch.cat(labels, dim=0).float().cpu().numpy()
+
+                        if task_type == "reg":
+                            metric_name = "r2"
+                            metric = r2_score(labels, preds)
+                            r2_scores[split].append(metric)
+                        elif task_type == "clf":
+                            metric_name = "auc"
+                            labels = [int(x > 0) for x in labels]
+                            metric = roc_auc_score(labels, preds)
+                            auc_scores[split].append(metric)
+
+                        k = f"{metric_name}/{db_name}/{table_name}/{split}"
+                        store.log(k, metric)
+                        wandb.log({k: metric}, step=steps)
+                        print(f"\nstep={steps}, \t{k}: {metric}")
+                        metrics[split][(db_name, table_name)] = metric
+
+        if rank == 0:
+            for avg_metric_name, _scores_dict in [
+                ("avg_r2", r2_scores),
+                ("avg_auc", auc_scores),
+            ]:
+                for _split, _scores in _scores_dict.items():
                     wandb.log(
                         {
-                            k: loss,
-                            f"avg_eval_load_time/{db_name}/{table_name}": avg_eval_load_time,
+                            f"{avg_metric_name}/{_split}": (
+                                sum(_scores) / len(_scores) if _scores else 0.0
+                            )
                         },
                         step=steps,
                     )
 
-                    preds = torch.cat(preds, dim=0).float().cpu().numpy()
-                    labels = torch.cat(labels, dim=0).float().cpu().numpy()
+            for split, losses in relbench_db_losses.items():
+                k = f"loss/relbench/{split}"
+                print(f"split={split}, relbench losses={losses}")
+                metric = np.mean(losses)
+                wandb.log({k: metric}, step=steps)
+                print(f"\nstep={steps}, \t{k}: {metric}")
+                metrics[split][("relbench-loss", "")] = metric
 
-                    if task_type == "reg":
-                        metric_name = "r2"
-                        metric = r2_score(labels, preds)
-                    elif task_type == "clf":
-                        metric_name = "auc"
-                        labels = [int(x > 0) for x in labels]
-                        metric = roc_auc_score(labels, preds)
-
-                    k = f"{metric_name}/{db_name}/{table_name}/{split}"
-                    store.log(k, metric)
+            if len(synthetic_db_losses) > 0:
+                assert (
+                    len(synthetic_db_losses) == 1
+                ), "only 'val' split was supposed to be used for consistency. there are no separate 'val/'test' splits"
+                for split, losses in synthetic_db_losses.items():
+                    k = f"loss/rel-synthetic/{split}"
+                    print(f"split={split}, rel-synthetic losses={losses}")
+                    metric = np.mean(losses)
                     wandb.log({k: metric}, step=steps)
                     print(f"\nstep={steps}, \t{k}: {metric}")
-                    metrics[split][(db_name, table_name)] = metric
+                    metrics[split][("rel-synthetic-loss", "")] = metric
 
         return metrics
 
