@@ -96,9 +96,8 @@ def generate_rel_synthetic_tasks(
     train_autocomplete_reg_tasks = []
     test_autocomplete_clf_tasks = []
     test_autocomplete_reg_tasks = []
-    # dbs = []
 
-    # have a collection for test dbs
+    # have a collection for test dbs (2* is just a buffer)
     test_seeds = seeds[: 2 * num_test_dbs]
     train_seeds = seeds[2 * num_test_dbs :]
 
@@ -109,34 +108,6 @@ def generate_rel_synthetic_tasks(
     train_autocomplete_clf_tasks, train_autocomplete_reg_tasks = get_clf_reg_tasks(
         seeds=train_seeds, max_db_count=num_train_dbs
     )
-
-    # for seed in seeds:
-    #     db_name = f"rel-synthetic-{seed}"
-    #     dataset = SyntheticDataset(
-    #         seed=seed,
-    #         config=Config(cache_dir=Path(f"~/.cache/relbench/{db_name}").expanduser())
-    #     )
-    #     db = dataset.get_db()
-    #     if not is_valid_db(db):
-    #         print(f"invalid db: {db_name}")
-    #         continue
-    #     for table_name in sorted(list(db.table_dict.keys())):
-    #         tasks_info = get_tasks_info(db=db, db_name=db_name, table_name=table_name)
-    #         train_autocomplete_clf_tasks.extend(tasks_info["clf"])
-    #         train_autocomplete_reg_tasks.extend(tasks_info["reg"])
-    #     train_dbs.append(db)
-    #     if len(train_dbs) == num_train_dbs:
-    #         break
-
-    # for db_name, db in test_dbs:
-    #     if not is_valid_db(db):
-    #         continue
-    #     for table_name in sorted(list(db.table_dict.keys())):
-    #         if "date" not in db.table_dict[table_name].df.columns:
-    #             continue
-    #         tasks_info = get_tasks_info(db=db, db_name=db_name, table_name=table_name)
-    #         test_autocomplete_clf_tasks.extend(tasks_info["clf"])
-    #         test_autocomplete_reg_tasks.extend(tasks_info["reg"])
 
     if skip_clf_tasks:
         train_autocomplete_clf_tasks = []
