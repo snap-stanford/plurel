@@ -48,7 +48,7 @@ db = dataset.make_db()
 We also provide a multiprocessing-based script to generate databases in parallel.
 
 ```bash
-$ pixi run python scripts/gen.py \
+$ pixi run python scripts/synthetic_gen.py \
     --seed_offset 0 \
     --num_dbs 1000 \
     --num_proc 16
