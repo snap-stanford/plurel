@@ -37,7 +37,7 @@ if __name__ == "__main__":
                 eval_pow2=False,
                 max_eval_steps=80,
                 load_ckpt_path=None,
-                save_ckpt_dir=f"~/scratch/ckpts/syn-pt_d_seeds_{offset}_{num_dbs}_{num_train_dbs}_{num_test_dbs}_max_steps_{max_steps}",
+                save_ckpt_dir=f"~/scratch/ckpts/syn-pretrain_d_seeds_{offset}_{num_dbs}_{num_train_dbs}_{num_test_dbs}_max_steps_{max_steps}",
                 compile_=True,
                 seed=0,
                 # data
