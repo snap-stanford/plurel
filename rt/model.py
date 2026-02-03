@@ -18,14 +18,13 @@ flex_attention = torch.compile(flex_attention)
 
 
 class MaskedAttention(nn.Module):
-    def __init__(self, d_model, num_heads, use_qk_norm: bool = False):
+    def __init__(self, d_model, num_heads):
         super().__init__()
         self.num_heads = num_heads
         self.head_dim = d_model // self.num_heads
-        self.use_qk_norm = use_qk_norm
-        if self.use_qk_norm:
-            self.q_norm = nn.RMSNorm(self.head_dim)
-            self.k_norm = nn.RMSNorm(self.head_dim)
+        # setup qk norm
+        self.q_norm = nn.RMSNorm(self.head_dim)
+        self.k_norm = nn.RMSNorm(self.head_dim)
 
         self.wq = nn.Linear(d_model, d_model, bias=False)
         self.wk = nn.Linear(d_model, d_model, bias=False)
@@ -41,9 +40,9 @@ class MaskedAttention(nn.Module):
         k = rearrange(k, "b s (h d) -> b h s d", h=self.num_heads)
         v = rearrange(v, "b s (h d) -> b h s d", h=self.num_heads)
 
-        if self.use_qk_norm:
-            q = self.q_norm(q)
-            k = self.k_norm(k)
+        # apply qk norm
+        q = self.q_norm(q)
+        k = self.k_norm(k)
 
         if block_mask is None:
             with sdpa_kernel(SDPBackend.FLASH_ATTENTION):
@@ -117,7 +116,7 @@ class FFN(nn.Module):
 
 
 class RelationalBlock(nn.Module):
-    def __init__(self, d_model, num_heads, d_ff, use_sw_attn=False, use_qk_norm=False):
+    def __init__(self, d_model, num_heads, d_ff, use_sw_attn=False):
         super().__init__()
         self.use_sw_attn = use_sw_attn
 
@@ -134,7 +133,7 @@ class RelationalBlock(nn.Module):
 
         # Use MaskedAttention for other attention types
         for l in self.attn_types:
-            self.attns[l] = MaskedAttention(d_model, num_heads, use_qk_norm)
+            self.attns[l] = MaskedAttention(d_model, num_heads)
 
         self.ffn = FFN(d_model, d_ff)
 
@@ -172,7 +171,6 @@ class RelationalTransformer(nn.Module):
         use_temporal_mask=False,
         use_sw_attn=False,
         sw_len=None,
-        use_qk_norm=False,
     ):
         super().__init__()
         self.use_temporal_mask = use_temporal_mask
@@ -213,13 +211,7 @@ class RelationalTransformer(nn.Module):
         )
         self.blocks = nn.ModuleList(
             [
-                RelationalBlock(
-                    d_model,
-                    num_heads,
-                    d_ff,
-                    use_sw_attn=use_sw_attn,
-                    use_qk_norm=use_qk_norm,
-                )
+                RelationalBlock(d_model, num_heads, d_ff, use_sw_attn=use_sw_attn)
                 for i in range(num_blocks)
             ]
         )

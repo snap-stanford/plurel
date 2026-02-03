@@ -107,7 +107,6 @@ def main(
     use_temporal_mask=False,
     use_sw_attn=False,
     sw_len=None,
-    use_qk_norm=False,
 ):
     seed_everything(seed)
 
@@ -211,7 +210,6 @@ def main(
         use_temporal_mask=use_temporal_mask,
         use_sw_attn=use_sw_attn,
         sw_len=sw_len,
-        use_qk_norm=use_qk_norm,
     )
     if load_ckpt_path is not None:
         load_ckpt_path = Path(load_ckpt_path).expanduser()
