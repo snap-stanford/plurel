@@ -247,7 +247,6 @@ pub struct Sampler {
     seed: u64,
     target_columns: Vec<i32>,
     columns_to_drop: Vec<Vec<i32>>,
-    max_items_per_task: i64,
     dataset_tuples: Vec<(String, i32, i32)>, // (db_name, node_idx_offset, num_nodes) for each dataset
 }
 
@@ -267,7 +266,6 @@ impl Sampler {
         seed: u64,
         target_columns: Vec<i32>,
         columns_to_drop: Vec<Vec<i32>>,
-        max_items_per_task: i64,
     ) -> Self {
         let mut datasets = Vec::new();
 
@@ -315,7 +313,6 @@ impl Sampler {
             seed,
             target_columns,
             columns_to_drop,
-            max_items_per_task,
             dataset_tuples,
         };
 
@@ -347,16 +344,10 @@ impl Sampler {
         for (i, &(_, node_idx_offset, num_nodes)) in self.dataset_tuples.iter().enumerate() {
             let target = self.target_columns[i];
 
-            let num_to_sample = if self.max_items_per_task == -1 {
-                num_nodes as usize
-            } else {
-                (num_nodes as usize).min(self.max_items_per_task as usize)
-            };
-
             let rng_seed = self.seed + (epoch * num_tasks) + (i as u64);
             let mut rng = StdRng::seed_from_u64(rng_seed);
 
-            let sampled_indices = index::sample(&mut rng, num_nodes as usize, num_to_sample);
+            let sampled_indices = index::sample(&mut rng, num_nodes as usize, num_nodes as usize);
 
             for idx in sampled_indices.iter() {
                 let node_idx = node_idx_offset + idx as i32;
@@ -701,7 +692,6 @@ pub fn main(cli: Cli) {
         0,                          // seed
         vec![-1; 1],                // target_columns
         vec![Vec::<i32>::new()],    // columns_to_drop
-        -1,                         // max_items_per_task (no limit)
     );
     println!("Sampler loaded in {:?}", tic.elapsed());
 
