@@ -28,7 +28,7 @@ $ pixi run pytest
 ```
 
 
-## Synthesize relational data from scratch
+## Synthesize Relational Data from Scratch
 
 - The `SyntheticDataset` class can be used to create [relbench](https://github.com/snap-stanford/relbench) compatible dataset objects.
 - It only requires a `seed` and a `Config` object that contains `database`, `scm` and `dag` level params for sampling. See example below.
@@ -43,7 +43,7 @@ dataset = SyntheticDataset(seed=0, config=Config())
 db = dataset.make_db()
 ```
 
-### Scalable generation
+### Scalable Generation
 
 We also provide a multiprocessing-based script to generate databases in parallel.
 
