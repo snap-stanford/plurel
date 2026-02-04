@@ -14,7 +14,6 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.nn.utils import clip_grads_with_norm_, get_total_norm
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
-from roach.store import store
 
 from rt.data import RelationalDataset
 from rt.model import RelationalTransformer
@@ -114,9 +113,6 @@ def main(
         world_size = 1
 
     if rank == 0:
-        store.init(f"~/scratch/roach/stores/{project}")
-        store.save(locals(), "args")
-
         run = wandb.init(project=project, config=locals(), reinit="finish_previous")
         print(run.name)
 

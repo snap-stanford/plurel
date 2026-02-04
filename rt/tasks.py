@@ -1,8 +1,7 @@
 from pathlib import Path
 import numpy as np
-from rt.synthetic.dataset import SyntheticDataset
-from rt.synthetic.config import Config, DatabaseParams, Choices
-from rt.synthetic.utils import set_random_seed
+from plurel import SyntheticDataset, Config, DatabaseParams, Choices
+from plurel.utils import set_random_seed
 
 
 def is_valid_db(db):
