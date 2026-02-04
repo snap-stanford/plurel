@@ -62,9 +62,9 @@ $ pixi run python scripts/synthetic_gen.py \
 
 The preprocessed synthetic data is available on the Hugging Face Hub at [kvignesh1420/plurel](https://huggingface.co/datasets/kvignesh1420/plurel/tree/main).
 
-1. Install the CLI
+1. Install the HuggingFace CLI (if not present)
 ```bash
-pip install -U huggingface_hub
+pixi add huggingface_hub
 ```
 
 2. Create the destination
@@ -74,26 +74,51 @@ mkdir -p ~/scratch/pre
 
 3. Download the repository contents into ~/scratch/pre
 ```bash
-huggingface-cli download kvignesh1420/plurel \
-  --repo-type dataset \
-  --local-dir ~/scratch/pre \
-  --local-dir-use-symlinks False
+pixi run hf download kvignesh1420/plurel \
+    --repo-type dataset \
+    --local-dir ~/scratch/pre
 ```
 
 ## Download Synthetic Pretrained Checkpoints
 
-The synthetic pretrained model checkpoints are hosted on the Hugging Face Hub at [kvignesh1420/relational-transformer-plurel](https://huggingface.co/kvignesh1420/relational-transformer-plurel/tree/main). The downloaded models can be passed to the `load_ckpt_path` argument of the training scripts.
+The synthetic pretrained model checkpoints are hosted on the Hugging Face Hub at [kvignesh1420/relational-transformer-plurel](https://huggingface.co/kvignesh1420/relational-transformer-plurel/tree/main).
 
-1. Install the Hugging Face CLI (if not already installed):
 ```bash
-pip install -U huggingface_hub
+$ mkdir -p ~/scratch/rt_hf_ckpts
+
+$ pixi run hf download kvignesh1420/relational-transformer-plurel \
+    --repo-type model \
+    --local-dir ~/scratch/rt_hf_ckpts
 ```
 
-2. Download checkpoints:
+The downloaded checkpoints will be listed as:
+
 ```bash
-mkdir -p ~/scratch/rt_ckpts
-huggingface-cli download kvignesh1420/relational-transformer-plurel \
-  --repo-type model \
-  --local-dir ~/scratch/rt_ckpts \
-  --local-dir-use-symlinks False
+$ ls ~/scratch/rt_hf_ckpts
+
+# model pretrained on a dataset of size 4B tokens curated from 1024 synthetic RDBs
+synthetic-pretrain_rdb_1024_size_4b.pt
+
+# model pretrained on a dataset of size 16B tokens curated from 512 synthetic RDBs
+synthetic-pretrain_rdb_512_size_16b.pt
+```
+
+## Pretraining Experiments
+
+- Baseline (real-world) pretraining on relbench datasets with a randomly initialized relational-transformer (RT) model.
+
+```bash
+$ pixi run torchrun --standalone --nproc_per_node=1 scripts/baseline_pretrain.py
+```
+
+- Synthetic pretraining on varying number of databases and dataset sizes with a randomly initialized RT model.
+
+```bash
+$ pixi run torchrun --standalone --nproc_per_node=1 scripts/synthetic_pretrain.py
+```
+
+- Continued pretraining on relbench datasets using the synthetic pretrained models. For faster experimentation, the downloaded models from huggingface (stored in `~/scratch/rt_hf_ckpts`) can be passed to the `load_ckpt_path` argument in the training script.
+
+```bash
+$ pixi run torchrun --standalone --nproc_per_node=1 scripts/cntd_pretrain.py
 ```

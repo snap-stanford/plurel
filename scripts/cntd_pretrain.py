@@ -4,12 +4,8 @@ from rt.tasks import all_tasks, forecast_tasks
 
 if __name__ == "__main__":
 
-    load_ckpt_path = ""  # trained model path
-    model_name = ""  # a short name for trained model
-    assert (
-        load_ckpt_path != ""
-    ), "safety check to ensure paths are filled. skipping it will be similar to training from scratch."
-
+    load_ckpt_path = "~/scratch/rt_hf_ckpts/synthetic-pretrain_rdb_1024_size_4b.pt"
+    model_name = "synthetic-pretrain_rdb_1024_size_4b"
     for leave_db in [
         "rel-amazon",
         "rel-hm",
@@ -18,7 +14,7 @@ if __name__ == "__main__":
         "rel-stack",
         "rel-f1",
     ]:
-        print(f"Continued Pre-training without {leave_db}")
+        print(f"Continued Pre-training of {model_name} without {leave_db}")
 
         main(
             # misc
