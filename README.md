@@ -51,8 +51,16 @@ We also provide a multiprocessing-based script to generate databases in parallel
 $ pixi run python scripts/synthetic_gen.py \
     --seed_offset 0 \
     --num_dbs 1000 \
-    --num_proc 16
+    --num_proc 16 \
+    --preprocess
 ```
+
+| Argument | Description |
+|----------|-------------|
+| `--seed_offset` | Seed offset for database generation. DBs will be named `rel-synthetic-<seed>`. |
+| `--num_dbs` | Number of databases to generate. |
+| `--num_proc` | Number of parallel processes (default: number of CPU cores). |
+| `--preprocess` | Run preprocessing and embedding steps. Omit to skip. |
 
 > [!NOTE]
 > Checkout notebooks in `examples/` for synthesizing from SQL schemas
@@ -91,16 +99,13 @@ $ pixi run hf download kvignesh1420/relational-transformer-plurel \
     --local-dir ~/scratch/rt_hf_ckpts
 ```
 
-The downloaded checkpoints will be listed as:
+One of the downloaded checkpoints will be listed as:
 
 ```bash
 $ ls ~/scratch/rt_hf_ckpts
 
 # model pretrained on a dataset of size 4B tokens curated from 1024 synthetic RDBs
 synthetic-pretrain_rdb_1024_size_4b.pt
-
-# model pretrained on a dataset of size 16B tokens curated from 512 synthetic RDBs
-synthetic-pretrain_rdb_512_size_16b.pt
 ```
 
 ## Pretraining Experiments
