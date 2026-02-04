@@ -17,12 +17,13 @@ Synthetic Data unlocks Scaling Laws for Relational Foundation Models
 Setup the environment with [pixi](https://pixi.sh/latest/installation/)
 
 ```bash
+# setup pixi environment
 $ pixi install
-```
 
-Run pytest as a sanity check
+# Compile and install the rust sampler
+$ cd rustler && pixi run maturin develop --uv --release && cd ..
 
-```bash
+# Run pytest as a sanity check
 $ pixi run pytest
 ```
 
