@@ -1,26 +1,41 @@
 import networkx as nx
-from torch_frame import stype
-
-from sqlalchemy import create_engine, MetaData, text
-from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import (
-    Integer,
     BigInteger,
-    Float,
-    Numeric,
     Boolean,
-    String,
     Date,
     DateTime,
+    Float,
+    Integer,
+    MetaData,
+    Numeric,
+    String,
     Time,
+    create_engine,
+    text,
+)
+from sqlalchemy import (
     Enum as SAEnum,
 )
+from sqlalchemy.exc import SQLAlchemyError
+from torch_frame import stype
 
-from plurel.dag import DAG_REGISTRY
 from plurel.config import Config
+from plurel.dag import DAG_REGISTRY
 
 
 class RandomSchemaGraphBuilder:
+    """
+    Builds a random relational schema graph based on configuration parameters.
+
+    Generates table structures with primary keys, foreign keys, and feature columns
+    using random DAG layouts.
+
+    Args:
+        config: Configuration object with database and SCM parameters.
+        num_tables: Number of tables to generate.
+        seed: Random seed for reproducibility.
+    """
+
     def __init__(self, config: Config, num_tables: int, seed: int):
         self.config = config
         self.num_tables = num_tables
@@ -96,6 +111,16 @@ class RandomSchemaGraphBuilder:
 
 
 class SQLSchemaGraphBuilder:
+    """
+    Builds a relational schema graph from an SQL schema file.
+
+    Parses CREATE TABLE statements and extracts table structures including
+    columns, primary keys, foreign keys, and data types.
+
+    Args:
+        sql_file: Path to the SQL schema file.
+    """
+
     def __init__(self, sql_file: str):
         self.sql_file = sql_file
         self.metadata = MetaData()

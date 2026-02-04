@@ -1,8 +1,8 @@
-import pytest
-from pathlib import Path
 
+import pytest
+
+from plurel.config import Choices, Config, DatabaseParams
 from plurel.dataset import SyntheticDataset
-from plurel.config import Config, DatabaseParams, Choices
 
 
 @pytest.mark.parametrize("seed", list(range(10)))

@@ -1,13 +1,13 @@
-from pathlib import Path
 import argparse
 import subprocess
 from functools import partial
+from multiprocessing import Pool, cpu_count
+from pathlib import Path
 
 from tqdm import tqdm
-from multiprocessing import Pool, cpu_count
 
-from plurel.dataset import SyntheticDataset
 from plurel.config import Config
+from plurel.dataset import SyntheticDataset
 from plurel.utils import set_random_seed
 
 

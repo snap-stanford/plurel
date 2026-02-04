@@ -1,10 +1,9 @@
-import networkx as nx
 import numpy as np
 from torch_frame import stype
 
+from plurel.config import DAGParams, SCMParams
 from plurel.dag import DAG_REGISTRY
 from plurel.scm import SCM
-from plurel.config import SCMParams, DAGParams
 from plurel.utils import TableType
 
 

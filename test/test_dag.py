@@ -1,7 +1,7 @@
 import pytest
-import networkx as nx
-from plurel.dag import DAG_REGISTRY, ErdosRenyi
+
 from plurel.config import DAGParams
+from plurel.dag import DAG_REGISTRY
 
 NODE_COUNTS = [10, 20, 50, 100]
 

@@ -1,18 +1,12 @@
-import os
-from typing import Optional
-from dataclasses import dataclass
-import pandas as pd
-import numpy as np
-
 import networkx as nx
+import numpy as np
+import pandas as pd
 from relbench.base import Database, Dataset, Table
-from torch_frame import stype
 
-from plurel.dag import DAG_REGISTRY
-from plurel.scm import SCM
-from plurel.utils import set_random_seed, TableType
 from plurel.config import Config
-from plurel.schema import SQLSchemaGraphBuilder, RandomSchemaGraphBuilder
+from plurel.schema import RandomSchemaGraphBuilder, SQLSchemaGraphBuilder
+from plurel.scm import SCM
+from plurel.utils import TableType, set_random_seed
 
 
 class SyntheticDataset(Dataset):
@@ -71,7 +65,7 @@ class SyntheticDataset(Dataset):
         return builder.build_graph()
 
     def configure_table_relationships(
-        self, num_tables: Optional[int] = None, schema_file: Optional[str] = None
+        self, num_tables: int | None = None, schema_file: str | None = None
     ) -> nx.DiGraph:
         """
         Define the primary -> foreign key relationships between tables as a DAG.

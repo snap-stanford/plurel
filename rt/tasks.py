@@ -1,6 +1,8 @@
 from pathlib import Path
+
 import numpy as np
-from plurel import SyntheticDataset, Config, DatabaseParams, Choices
+
+from plurel import Config, SyntheticDataset
 from plurel.utils import set_random_seed
 
 

@@ -6,7 +6,6 @@ import strictfire
 import torch
 from ml_dtypes import bfloat16
 from sentence_transformers import SentenceTransformer
-from tqdm import tqdm
 
 
 class TextEmbedder:

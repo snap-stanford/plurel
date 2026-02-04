@@ -1,7 +1,8 @@
 from dataclasses import dataclass, field
-from typing import List, Callable, Optional, Any, Literal, Union
-import pandas as pd
+from typing import Any, Literal
+
 import numpy as np
+import pandas as pd
 import torch
 import torch.nn.functional as F
 from torch.distributions import Beta
@@ -10,8 +11,20 @@ from torch_frame import stype
 
 @dataclass(frozen=True)
 class Choices:
+    """
+    A sampling utility for configuration parameters.
+
+    Supports two kinds of sampling:
+    - "range": Uniform sampling between [value[0], value[1]]
+    - "set": Random selection from a discrete set of values
+
+    Args:
+        kind: Either "range" or "set"
+        value: For "range", a list of [min, max]. For "set", a list of discrete choices.
+    """
+
     kind: Literal["range", "set"]
-    value: Union[List[Any], Any]
+    value: list[Any] | Any
 
     def __post_init__(self):
         if self.kind not in ("range", "set"):
@@ -25,10 +38,10 @@ class Choices:
                 )
             if len(self.value) != 2:
                 raise ValueError(
-                    f"'value' must have two elements to support 'range' based sampling"
+                    "'value' must have two elements to support 'range' based sampling"
                 )
 
-    def sample_uniform(self, size: Optional[int] = None, replace: bool = False):
+    def sample_uniform(self, size: int | None = None, replace: bool = False):
         if self.kind == "range":
             if type(self.value[0]) == int:
                 return np.random.randint(
@@ -45,7 +58,7 @@ class Choices:
         elif self.kind == "set":
             return np.random.choice(self.value, size=size, replace=replace)
 
-    def sample_pl(self, exponent: float = 1, size: Optional[int] = None, replace: bool = False):
+    def sample_pl(self, exponent: float = 1, size: int | None = None, replace: bool = False):
         if self.kind == "range":
             if type(self.value[0]) == int:
                 low = self.value[0]
@@ -64,6 +77,8 @@ class Choices:
 
 @dataclass(frozen=True)
 class DatabaseParams:
+    """Parameters controlling database structure and table generation."""
+
     table_layout_choices: Choices = Choices(
         kind="set",
         value=["BarabasiAlbert", "ReverseRandomTree", "WattsStrogatz"],
@@ -79,6 +94,8 @@ class DatabaseParams:
 
 @dataclass(frozen=True)
 class SCMParams:
+    """Parameters controlling Structural Causal Models (SCMs)."""
+
     scm_layout_choices: Choices = Choices(
         kind="set",
         value=[
@@ -142,6 +159,8 @@ class SCMParams:
 
 @dataclass(frozen=True)
 class DAGParams:
+    """Parameters controlling DAG structure generation."""
+
     ba_sink_edge_dropout: float = 0.4
     ba_flip_leaf_edge_prob: float = 0.0
     ba_max_in_degree: int = 4
@@ -154,10 +173,23 @@ class DAGParams:
 
 @dataclass(frozen=True)
 class Config:
+    """
+    Top-level configuration for synthetic database generation.
+
+    Args:
+        database_params: Parameters for database structure and tables.
+        scm_params: Parameters for Structural Causal Models.
+        dag_params: Parameters for DAG structure.
+        val_split: Fraction of rows for validation split.
+        test_split: Fraction of rows for test split.
+        cache_dir: Optional directory for caching generated databases.
+        schema_file: Optional SQL schema file for schema-based generation.
+    """
+
     database_params: DatabaseParams = field(default_factory=DatabaseParams)
     scm_params: SCMParams = field(default_factory=SCMParams)
     dag_params: DAGParams = field(default_factory=DAGParams)
     val_split: float = 0.8
     test_split: float = 0.9
-    cache_dir: Optional[str] = None
-    schema_file: Optional[str] = None
+    cache_dir: str | None = None
+    schema_file: str | None = None

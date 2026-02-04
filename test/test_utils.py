@@ -1,5 +1,7 @@
-import pytest
 import itertools
+
+import pytest
+
 from plurel.utils import get_bipartite_hsbm
 
 sizes_a = [10, 30, 50]

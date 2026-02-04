@@ -1,14 +1,14 @@
 import json
-from typing import List
 import random
 from datetime import datetime
-import pandas as pd
-import numpy as np
-import string
-import networkx as nx
-import torch
 from enum import Enum
+
+import networkx as nx
+import numpy as np
+import pandas as pd
+import torch
 from tqdm import tqdm
+
 from plurel.config import SCMParams
 
 
@@ -23,7 +23,7 @@ def set_random_seed(seed: int):
     torch.backends.cudnn.benchmark = False
 
 
-def assign_cluster_at_levels(num_nodes: int, hierarchy: List):
+def assign_cluster_at_levels(num_nodes: int, hierarchy: list):
     num_base_clusters = np.prod(hierarchy)
     nodes_per_cluster = int(np.ceil(num_nodes / num_base_clusters))
     base_cluster_offsets = [
@@ -43,7 +43,7 @@ def assign_cluster_at_levels(num_nodes: int, hierarchy: List):
     return cluster_at_levels
 
 
-def get_probs_at_levels(hierarchy_a: List, hierarchy_b: List):
+def get_probs_at_levels(hierarchy_a: list, hierarchy_b: list):
     assert len(hierarchy_a) == len(
         hierarchy_b
     ), "only similar hierarchy levels are supported"
@@ -62,9 +62,9 @@ def get_probs_at_levels(hierarchy_a: List, hierarchy_b: List):
 def get_nodes_connect_prob(
     node_idx_a: int,
     node_idx_b: int,
-    probs_at_levels: List,
-    cluster_at_levels_a: List,
-    cluster_at_levels_b: List,
+    probs_at_levels: list,
+    cluster_at_levels_a: list,
+    cluster_at_levels_b: list,
 ):
     num_levels = len(probs_at_levels)
     probs = [
@@ -77,7 +77,7 @@ def get_nodes_connect_prob(
     return np.prod(probs)
 
 
-def get_bipartite_hsbm(size_a: int, size_b: int, hierarchy_a: List, hierarchy_b: List):
+def get_bipartite_hsbm(size_a: int, size_b: int, hierarchy_a: list, hierarchy_b: list):
     assert len(hierarchy_a) == len(
         hierarchy_b
     ), "only similar hierarchy levels are supported"

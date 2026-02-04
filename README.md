@@ -7,6 +7,15 @@ Synthetic Data unlocks Scaling Laws for Relational Foundation Models
 </div>
 <br>
 
+## Overview
+
+PluRel is a framework for synthesizing relational databases using Structural Causal Models (SCMs). It enables:
+
+- Generation of synthetic relational databases (from scratch or from SQL schemas) compatible with [relbench](https://github.com/snap-stanford/relbench).
+- Scalable multi-processing data generation.
+- High-performance context sampling via a Rust-based sampler (rustler).
+- Pretraining of relational transformers on synthetic data.
+
 ## Framework Design
 
 <img src="assets/plurel.png" alt="PluRel Logo"/>
@@ -23,8 +32,12 @@ $ pixi install
 # Compile and install the rust sampler
 $ cd rustler && pixi run maturin develop --uv --release && cd ..
 
-# Run pytest as a sanity check
+# Run tests
 $ pixi run pytest
+
+# Lint and format code
+$ pixi run ruff check .
+$ pixi run ruff format .
 ```
 
 

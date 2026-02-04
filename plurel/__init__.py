@@ -1,2 +1,11 @@
+from .config import Choices, Config, DAGParams, DatabaseParams, SCMParams
 from .dataset import SyntheticDataset
-from .config import Config, Choices, SCMParams, DAGParams, DatabaseParams
+
+__all__ = [
+    "Choices",
+    "Config",
+    "DAGParams",
+    "DatabaseParams",
+    "SCMParams",
+    "SyntheticDataset",
+]

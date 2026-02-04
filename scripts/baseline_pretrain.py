@@ -1,4 +1,3 @@
-import argparse
 from rt.main import main
 from rt.tasks import all_tasks, forecast_tasks
 

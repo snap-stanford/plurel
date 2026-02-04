@@ -42,3 +42,19 @@ datasets = ">=4.5.0,<5"
 wandb = ">=0.24.1,<0.25"
 rust = "*"
 uv = "*"
+ruff = "*"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+ignore = ["E501", "E721", "E741", "F841"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.pytest.ini_options]
+testpaths = ["test"]
+env = ["KMP_DUPLICATE_LIB_OK=TRUE"]

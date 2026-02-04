@@ -3,12 +3,12 @@ Create DAGs with various strategies
 """
 
 import abc
-from typing import List, Optional
-import numpy as np
-import networkx as nx
 
-from plurel.utils import set_random_seed
+import networkx as nx
+import numpy as np
+
 from plurel.config import DAGParams
+from plurel.utils import set_random_seed
 
 
 class DAG(abc.ABC):
@@ -20,7 +20,7 @@ class DAG(abc.ABC):
         self,
         num_nodes: int,
         dag_params: DAGParams,
-        seed: Optional[int] = None,
+        seed: int | None = None,
     ):
         self.seed = seed
         if self.seed:
@@ -36,10 +36,10 @@ class DAG(abc.ABC):
         assert nx.is_directed_acyclic_graph(self.graph)
         assert nx.is_connected(self.graph.to_undirected(as_view=True))
 
-    def order_edges(self, edges: List):
+    def order_edges(self, edges: list):
         return [(src, dst) for (src, dst) in edges if src < dst]
 
-    def add_edge_weights(self, edges: List):
+    def add_edge_weights(self, edges: list):
         return [
             (
                 src,
@@ -137,7 +137,7 @@ class RandomTree(DAG):
     Create DAGs with the random tree structure where edges point away from root node
     """
 
-    def order_edges(self, edges: List):
+    def order_edges(self, edges: list):
         return edges
 
     def sample(self, num_nodes: int) -> nx.DiGraph:
@@ -158,7 +158,7 @@ class ReverseRandomTree(RandomTree):
     Create DAGs with the reverse random tree structure where edges point to root node
     """
 
-    def order_edges(self, edges: List):
+    def order_edges(self, edges: list):
         return [(dst, src) for (src, dst) in edges]
 
 

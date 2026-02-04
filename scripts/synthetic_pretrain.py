@@ -1,6 +1,5 @@
-import argparse
 from rt.main import main
-from rt.tasks import all_tasks, forecast_tasks, generate_rel_synthetic_tasks
+from rt.tasks import forecast_tasks, generate_rel_synthetic_tasks
 
 if __name__ == "__main__":
 

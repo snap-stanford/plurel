@@ -1,8 +1,9 @@
-import pytest
-import networkx as nx
 from pathlib import Path
 
+import networkx as nx
+import pytest
 from torch_frame import stype
+
 from plurel.schema import SQLSchemaGraphBuilder
 
 

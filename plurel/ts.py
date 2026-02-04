@@ -2,9 +2,9 @@
 Synthetic time-series data
 """
 
-from typing import List
-import numpy as np
 import math
+
+import numpy as np
 
 
 class Cycle:
@@ -87,7 +87,7 @@ class TSDataGenerator:
 
 
 class CategoricalTSDataGenerator:
-    def __init__(self, ts_data_gens: List[TSDataGenerator]):
+    def __init__(self, ts_data_gens: list[TSDataGenerator]):
         self.ts_data_gens = ts_data_gens
 
     def get_value(self, row_idx):

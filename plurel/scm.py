@@ -4,45 +4,38 @@ Generate synthetic tabular data using Structured Causal Models.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import List, Optional, Dict
-from datetime import datetime
-from tqdm import tqdm
-
+import networkx as nx
 import numpy as np
 import pandas as pd
-import networkx as nx
 import torch
-
 from torch_frame import stype
+from tqdm import tqdm
 
-from plurel.dag import DAG, DAG_REGISTRY
-from plurel.ts import TSDataGenerator, CategoricalTSDataGenerator
+from plurel.config import DAGParams, SCMParams
+from plurel.dag import DAG_REGISTRY
+from plurel.ts import CategoricalTSDataGenerator, TSDataGenerator
 from plurel.utils import (
-    set_random_seed,
     MLP,
-    CategoricalEncoder,
     CategoricalDecoder,
+    CategoricalEncoder,
     TableType,
     get_bipartite_hsbm,
-    get_bipartite_pl,
+    set_random_seed,
 )
-
-from plurel.config import SCMParams, DAGParams
 
 
 class SCM:
     def __init__(
         self,
         table_name: str,
-        child_table_names: List[str],
-        feature_columns: Dict[str, stype],
+        child_table_names: list[str],
+        feature_columns: dict[str, stype],
         pkey_col: str,
-        fkey_col_to_pkey_table: Dict[str, str],
-        foreign_scm_info: Dict[str, SCM],
+        fkey_col_to_pkey_table: dict[str, str],
+        foreign_scm_info: dict[str, SCM],
         scm_params: SCMParams,
         dag_params: DAGParams,
-        seed: Optional[int] = None,
+        seed: int | None = None,
     ):
         self.table_name = table_name
         self.child_table_names = child_table_names
@@ -111,13 +104,13 @@ class SCM:
             out_dim=self.scm_params.mlp_out_dim,
         )
 
-    def get_encoder(self, _stype: stype, num_categories: Optional[int]):
+    def get_encoder(self, _stype: stype, num_categories: int | None):
         if _stype == stype.numerical:
             return self._get_numerical_encoder()
         elif _stype == stype.categorical:
             return self._get_categorical_encoder(num_categories=num_categories)
 
-    def get_decoder(self, _stype: stype, num_categories: Optional[int]):
+    def get_decoder(self, _stype: stype, num_categories: int | None):
         if _stype == stype.numerical:
             return self._get_numerical_decoder()
         elif _stype == stype.categorical:
@@ -231,9 +224,9 @@ class SCM:
             )
 
     def propagate(
-        self, row_idx: int, foreign_row_idxs: List[int], foreign_scms: List[SCM]
+        self, row_idx: int, foreign_row_idxs: list[int], foreign_scms: list[SCM]
     ):
-        foreign_scms_row_embds: List[List] = []
+        foreign_scms_row_embds: list[list] = []
         for foreign_row_idx, foreign_scm in zip(foreign_row_idxs, foreign_scms):
             foreign_row_embds = foreign_scm.collate_feature_embeddings(
                 row_idx=foreign_row_idx, child_table_name=self.table_name
@@ -336,8 +329,8 @@ class SCM:
         self,
         num_rows: int,
         table_type: TableType,
-        min_timestamp: Optional[pd.Timestamp] = None,
-        max_timestamp: Optional[pd.Timestamp] = None,
+        min_timestamp: pd.Timestamp | None = None,
+        max_timestamp: pd.Timestamp | None = None,
     ):
         self.num_rows = num_rows
         self.initialize_ts_data_gens(num_rows=num_rows, table_type=table_type)
@@ -374,7 +367,7 @@ class SCM:
         num_cols = len(col_to_stype)
         # for p->f embedding propagation
         for col_name, value in row.items():
-            if not col_name in col_to_stype:
+            if col_name not in col_to_stype:
                 continue
             _stype = col_to_stype[col_name]
             if _stype == stype.numerical:
