@@ -223,9 +223,6 @@ def main(
         eval_loader_iters[k] = iter(eval_loader)
 
     def evaluate(net):
-        if rank == 0:
-            store.log("steps", steps)
-
         metrics = {"val": {}, "test": {}}
         r2_scores = {"val": [], "test": []}
         auc_scores = {"val": [], "test": []}
@@ -365,7 +362,6 @@ def main(
                             auc_scores[split].append(metric)
 
                         k = f"{metric_name}/{db_name}/{table_name}/{split}"
-                        store.log(k, metric)
                         wandb.log({k: metric}, step=steps)
                         print(f"\nstep={steps}, \t{k}: {metric}")
                         metrics[split][(db_name, table_name)] = metric

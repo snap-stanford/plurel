@@ -134,7 +134,7 @@ class RelationalBlock(nn.Module):
 
         self.ffn = FFN(d_model, d_ff)
 
-    def forward(self, x, block_masks, feat_attn_idx, feat_attn_mask):
+    def forward(self, x, block_masks):
         for attn in self.attn_types:
             x = x + self.attns[attn](self.norms[attn](x), block_mask=block_masks[attn])
 
@@ -278,16 +278,8 @@ class RelationalTransformer(nn.Module):
                 * ((batch["sem_types"] == i) & batch["masks"] & ~is_padding)[..., None]
             )
 
-        # Extract feat attention indices from batch
-        feat_attn_idx = (
-            batch["feat_attn_idx"].view(batch_size, seq_len, -1).long()
-        )  # (B, S, K)
-        feat_attn_mask = batch["feat_attn_mask"].view(
-            batch_size, seq_len, -1
-        )  # (B, S, K)
-
         for i, block in enumerate(self.blocks):
-            x = block(x, block_masks, feat_attn_idx, feat_attn_mask)
+            x = block(x, block_masks)
 
         x = self.norm_out(x)
 
