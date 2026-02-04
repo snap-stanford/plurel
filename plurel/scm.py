@@ -311,7 +311,9 @@ class SCM:
     def initialize_bi_fk_pk_graph_map(self):
         self.bi_fk_pk_graph_map = {}
         for foreign_table_name, foreign_scm in tqdm(
-            self.foreign_scm_info.items(), desc="Generating bi_fk_pk_graphs"
+            self.foreign_scm_info.items(),
+            desc="Generating bi_fk_pk_graphs",
+            leave=False,
         ):
             num_levels = self.scm_params.bi_hsbm_levels_choices.sample_uniform()
             hierarchy_a = [
@@ -343,13 +345,12 @@ class SCM:
         self.df = pd.DataFrame(
             [
                 self.generate_row(row_idx=row_idx)
-                for row_idx in tqdm(range(self.num_rows), desc="generating rows")
+                for row_idx in tqdm(
+                    range(self.num_rows), desc="generating rows", leave=False
+                )
             ]
         )
         if min_timestamp and max_timestamp:
-            print(
-                f"Adding uniformly spaced timestamps from {min_timestamp} to {max_timestamp}"
-            )
             self.df["date"] = pd.date_range(
                 start=min_timestamp, end=max_timestamp, periods=num_rows
             )

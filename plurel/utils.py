@@ -110,7 +110,9 @@ def get_bipartite_hsbm(size_a: int, size_b: int, hierarchy_a: List, hierarchy_b:
             hierarchy=list(cluster_at_levels_b[b_idx]),
         )
 
-    for b_idx, b_node in tqdm(enumerate(nodes_b), desc="adding edges in bi_hsbm"):
+    for b_idx, b_node in tqdm(
+        enumerate(nodes_b), desc="adding edges in bi_hsbm", leave=False
+    ):
         probs = np.array(
             [
                 get_nodes_connect_prob(
@@ -147,7 +149,9 @@ def get_bipartite_pl(size_a: int, size_b: int, exponent: float):
 
     shuffled_a_indxs = np.arange(size_a)
     np.random.shuffle(shuffled_a_indxs)
-    for b_idx, b_node in tqdm(enumerate(nodes_b), desc="adding edges in bi_pl"):
+    for b_idx, b_node in tqdm(
+        enumerate(nodes_b), desc="adding edges in bi_pl", leave=False
+    ):
         probs = np.array(
             [
                 1 - np.pow(shuffled_a_indxs[a_idx] / size_a, exponent)
@@ -272,5 +276,8 @@ class CategoricalDecoder:
 
     def __call__(self, x: torch.Tensor):
         x = self.mlp(x)
-        sims = self.E.weight @ x.T
+        if x.dim() == 1:
+            sims = self.E.weight @ x
+        else:
+            sims = self.E.weight @ x.mT
         return torch.argmax(sims, dim=0)
