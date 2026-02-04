@@ -54,59 +54,46 @@ $ pixi run python scripts/synthetic_gen.py \
     --num_proc 16
 ```
 
-### Synthesize from SQL schema
+> [!NOTE]
+> Checkout notebooks in `examples/` for synthesizing from SQL schemas
 
-Prepare a `schema.sql` file:
 
-```sql
-CREATE TABLE users (
-    user_id BIGINT PRIMARY KEY,
-    status TEXT CHECK (status IN ('active', 'inactive', 'banned'))
-);
+## Download Preprocessed Data
 
-CREATE TABLE orders (
-    order_id BIGINT PRIMARY KEY,
-    user_id BIGINT,
-    amount DOUBLE,
-    order_type TEXT CHECK (order_type IN ('online', 'instore')),
-    FOREIGN KEY (user_id) REFERENCES users(user_id)
-);
+The preprocessed synthetic data is available on the Hugging Face Hub at [kvignesh1420/plurel](https://huggingface.co/datasets/kvignesh1420/plurel/tree/main).
+
+1. Install the CLI
+```bash
+pip install -U huggingface_hub
 ```
 
-Synthesize features with `plurel`
-
-```py
-from plurel import SyntheticDataset, Config, DatabaseParams, Choices
-
-config = Config(
-    database_params=DatabaseParams(
-        num_rows_entity_table_choices=Choices("range", [500, 1000]),
-        num_rows_activity_table_choices=Choices("range", [5000, 10000]),
-    ),
-    schema_file="schema.sql", # pass the schema file to config
-)
-
-db = SyntheticDataset(seed=0, config=config).make_db()
+2. Create the destination
+```bash
+mkdir -p ~/scratch/pre
 ```
 
-PluRel populates the tables with data from diverse distributions
-
-```py
-# === synthesized "orders" table ===
-   order_id  user_id    amount order_type                       date
-0         0       27  0.450017     online 2014-09-08 00:00:00.000000
-1         1      132  0.450033    instore 2014-09-08 02:58:31.964238
-2         2       56  0.450052    instore 2014-09-08 05:57:03.928477
-3         3      113  0.450071     online 2014-09-08 08:55:35.892716
-4         4      127  0.450092    instore 2014-09-08 11:54:07.856955
-
-# === synthesized "users" table ===
-   user_id  status
-0        0  active
-1        1  banned
-2        2  active
-3        3  active
-4        4  active
+3. Download the repository contents into ~/scratch/pre
+```bash
+huggingface-cli download kvignesh1420/plurel \
+  --repo-type dataset \
+  --local-dir ~/scratch/pre \
+  --local-dir-use-symlinks False
 ```
 
-Checkout notebooks in `examples/` for exploration!
+## Download Synthetic Pretrained Checkpoints
+
+The synthetic pretrained model checkpoints are hosted on the Hugging Face Hub at [kvignesh1420/relational-transformer-plurel](https://huggingface.co/kvignesh1420/relational-transformer-plurel/tree/main). The downloaded models can be passed to the `load_ckpt_path` argument of the training scripts.
+
+1. Install the Hugging Face CLI (if not already installed):
+```bash
+pip install -U huggingface_hub
+```
+
+2. Download checkpoints:
+```bash
+mkdir -p ~/scratch/rt_ckpts
+huggingface-cli download kvignesh1420/relational-transformer-plurel \
+  --repo-type model \
+  --local-dir ~/scratch/rt_ckpts \
+  --local-dir-use-symlinks False
+```
