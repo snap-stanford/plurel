@@ -18,7 +18,6 @@ Setup the environment with [pixi](https://pixi.sh/latest/installation/)
 
 ```bash
 $ pixi install
-$ pixi run pip install -e .
 ```
 
 Run pytest as a sanity check
