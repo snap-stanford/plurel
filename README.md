@@ -177,7 +177,7 @@ If you find this work useful, please cite our paper:
 
 ```bibtex
 @misc{kothapalli2026plurel,
-      title={PluRel: Synthetic Data unlocks Scaling Laws for Relational Foundation Models},
+      title={{PluRel:} Synthetic Data unlocks Scaling Laws for Relational Foundation Models},
       author={Vignesh Kothapalli and Rishabh Ranjan and Valter Hudovernik and Vijay Prakash Dwivedi and Johannes Hoffart and Carlos Guestrin and Jure Leskovec},
       year={2026},
       eprint={2602.04029},
