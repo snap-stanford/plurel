@@ -7,9 +7,11 @@ Synthetic Data unlocks Scaling Laws for Relational Foundation Models
 </div>
 <br>
 
+This repository provides a reference implementation for the paper [PluRel: Synthetic Data unlocks Scaling Laws for Relational Foundation Models](https://arxiv.org/abs/2602.04029).
+
 ## Overview
 
-PluRel is a framework for synthesizing relational databases using Structural Causal Models (SCMs). It enables:
+PluRel is a framework for synthesizing relational databases using Structural Causal Models (SCMs). This repository provides:
 
 - Generation of synthetic relational databases (from scratch or from SQL schemas) compatible with [relbench](https://github.com/snap-stanford/relbench).
 - Scalable multi-processing data generation.
