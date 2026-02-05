@@ -58,6 +58,26 @@ dataset = SyntheticDataset(seed=0, config=Config())
 db = dataset.make_db()
 ```
 
+### Configuration
+
+The `Config` class controls all aspects of synthetic database generation through three parameter groups:
+
+| Parameter Group | Description |
+|-----------------|-------------|
+| `DatabaseParams` | Table layout (`BarabasiAlbert`, `ReverseRandomTree`, `WattsStrogatz`), number of tables, row counts, column counts, and timestamp ranges. |
+| `SCMParams` | SCM graph layouts, column types, MLP initialization, activation functions, noise distributions, and time-series trend/cycle parameters. |
+| `DAGParams` | DAG-specific parameters like edge dropout, in-degree limits, and rewiring probabilities for different graph types. |
+
+```py
+from plurel import Config, DatabaseParams, SCMParams
+
+config = Config(
+    database_params=DatabaseParams(num_tables_choices=Choices(kind="range", value=[5, 10])),
+    schema_file="path/to/schema.sql",  # optional: generate from SQL schema
+    cache_dir="~/.cache/plurel",       # optional: cache generated databases
+)
+```
+
 ### Scalable Generation
 
 We also provide a multiprocessing-based script to generate databases in parallel.
@@ -102,6 +122,14 @@ pixi run hf download kvignesh1420/plurel \
     --local-dir ~/scratch/pre
 ```
 
+The preprocessed relbench data is available on the Hugging Face Hub at [hvag976/relational-transformer](https://huggingface.co/datasets/hvag976/relational-transformer/tree/main).
+
+```bash
+pixi run hf download hvag976/relational-transformer \
+    --repo-type dataset \
+    --local-dir ~/scratch/pre
+```
+
 ## Download Synthetic Pretrained Checkpoints
 
 The synthetic pretrained model checkpoints are hosted on the Hugging Face Hub at [kvignesh1420/relational-transformer-plurel](https://huggingface.co/kvignesh1420/relational-transformer-plurel/tree/main).
@@ -141,4 +169,20 @@ $ pixi run torchrun --standalone --nproc_per_node=1 scripts/synthetic_pretrain.p
 
 ```bash
 $ pixi run torchrun --standalone --nproc_per_node=1 scripts/cntd_pretrain.py
+```
+
+## Citation
+
+If you find this work useful, please cite our paper:
+
+```bibtex
+@misc{kothapalli2026plurelsyntheticdataunlocks,
+      title={PluRel: Synthetic Data unlocks Scaling Laws for Relational Foundation Models},
+      author={Vignesh Kothapalli and Rishabh Ranjan and Valter Hudovernik and Vijay Prakash Dwivedi and Johannes Hoffart and Carlos Guestrin and Jure Leskovec},
+      year={2026},
+      eprint={2602.04029},
+      archivePrefix={arXiv},
+      primaryClass={cs.DB},
+      url={https://arxiv.org/abs/2602.04029},
+}
 ```
