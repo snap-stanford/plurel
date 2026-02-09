@@ -13,7 +13,7 @@ This repository provides a reference implementation for the paper [PluRel: Synth
 
 PluRel is a framework for synthesizing diverse multi-tabular relational databases using Structural Causal Models (SCMs). This repository provides:
 
-- Scalable generation of synthetic relational databases (from scratch or from SQL schemas) compatible with [relbench](https://github.com/snap-stanford/relbench).
+- Scalable generation of synthetic relational databases (from scratch or SQL schemas) compatible with [relbench](https://github.com/snap-stanford/relbench).
 - High-performance context sampling via a Rust-based sampler (rustler).
 - Pretraining of relational transformers on synthetic data.
 
