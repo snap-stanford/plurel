@@ -11,21 +11,20 @@ This repository provides a reference implementation for the paper [PluRel: Synth
 
 ## Overview
 
-PluRel is a framework for synthesizing relational databases using Structural Causal Models (SCMs). This repository provides:
+PluRel is a framework for synthesizing diverse multi-tabular relational databases using Structural Causal Models (SCMs). This repository provides:
 
-- Generation of synthetic relational databases (from scratch or from SQL schemas) compatible with [relbench](https://github.com/snap-stanford/relbench).
-- Scalable multi-processing data generation.
+- Scalable generation of synthetic relational databases (from scratch or from SQL schemas) compatible with [relbench](https://github.com/snap-stanford/relbench).
 - High-performance context sampling via a Rust-based sampler (rustler).
 - Pretraining of relational transformers on synthetic data.
 
 ## Framework Design
 
-<img src="assets/plurel.png" alt="PluRel Logo"/>
+<img src="assets/plurel_animated.gif" alt="PluRel Logo"/>
 
 
 ## Setup
 
-Setup the environment with [pixi](https://pixi.sh/latest/installation/)
+Setup the development and testing environment with [pixi](https://pixi.sh/latest/installation/).
 
 ```bash
 # setup pixi environment
@@ -62,7 +61,7 @@ db = dataset.make_db()
 
 The `Config` class controls all aspects of synthetic database generation through three parameter groups:
 
-| Parameter Group | Description |
+| Parameters | Description |
 |-----------------|-------------|
 | `DatabaseParams` | Table layout (`BarabasiAlbert`, `ReverseRandomTree`, `WattsStrogatz`), number of tables, row counts, column counts, and timestamp ranges. |
 | `SCMParams` | SCM graph layouts, column types, MLP initialization, activation functions, noise distributions, and time-series trend/cycle parameters. |
