@@ -43,6 +43,9 @@ $ pixi run pytest
 # Lint and format code
 $ pixi run ruff check .
 $ pixi run ruff format .
+
+# Install pre-commit hooks
+$ pre-commit install
 ```
 
 
