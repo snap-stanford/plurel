@@ -1,0 +1,42 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: prefix-dev/setup-pixi@v0.8.1
+        with:
+          pixi-version: v0.45.0
+          cache: true
+
+      - name: Build Rust extension
+        run: pixi run maturin develop --manifest-path rustler/Cargo.toml --release
+
+      - name: Run tests
+        run: pixi run pytest
+
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: prefix-dev/setup-pixi@v0.8.1
+        with:
+          pixi-version: v0.45.0
+          cache: true
+
+      - name: Ruff check
+        run: pixi run ruff check .
+
+      - name: Ruff format check
+        run: pixi run ruff format --check .
