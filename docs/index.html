@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="description"
+        content="PluRel: Synthetic Data unlocks Scaling Laws for Relational Foundation Models">
+  <meta name="keywords" content="PluRel, Relational Foundation Models, Synthetic Data, Scaling Laws, Relational Transformer">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PluRel: Synthetic Data unlocks Scaling Laws for Relational Foundation Models</title>
+
+  <link href="https://fonts.googleapis.com/css?family=Google+Sans|Noto+Sans|Castoro"
+        rel="stylesheet">
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet"
+        href="https://cdn.jsdelivr.net/gh/jpswalsh/academicons@1/css/academicons.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-light.min.css">
+  <link rel="stylesheet" href="./static/css/index.css">
+
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/python.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/bash.min.js"></script>
+  <script>hljs.highlightAll();</script>
+  <script src="./static/js/index.js"></script>
+</head>
+<body>
+
+
+<section class="hero">
+  <div class="hero-body">
+    <div class="container is-max-desktop">
+      <div class="columns is-centered">
+        <div class="column has-text-centered">
+          <h1 class="title is-1 publication-title">PluRel: Synthetic Data unlocks Scaling Laws for Relational Foundation Models</h1>
+          <div class="is-size-5 publication-authors">
+            <span class="author-block">
+              <a href="https://kvignesh1420.github.io/">Vignesh Kothapalli</a><sup>1</sup>,</span>
+            <span class="author-block">
+              <a href="https://rishabh-ranjan.github.io/">Rishabh Ranjan</a><sup>1</sup>,</span>
+            <span class="author-block">
+              <a href="https://www.linkedin.com/in/valter-hudovernik/">Valter Hudovernik</a><sup>2</sup>,</span>
+            <span class="author-block">
+              <a href="https://vijaydwivedi.com.np/">Vijay Prakash Dwivedi</a><sup>1</sup>,</span>
+            <span class="author-block">
+              <a href="https://www.hoffart.ai/">Johannes Hoffart</a><sup>3</sup>,</span>
+            <span class="author-block">
+              <a href="https://guestrin.su.domains/">Carlos Guestrin</a><sup>1</sup>,</span>
+            <span class="author-block">
+              <a href="https://cs.stanford.edu/people/jure/">Jure Leskovec</a><sup>1</sup></span>
+          </div>
+
+          <div class="is-size-5 publication-authors">
+            <span class="author-block"><sup>1</sup>Stanford University,</span>
+            <span class="author-block"><sup>2</sup>Kumo AI,</span>
+            <span class="author-block"><sup>3</sup>SAP</span>
+          </div>
+
+          <div class="column has-text-centered">
+            <div class="publication-links">
+              <!-- Paper Link. -->
+              <span class="link-block">
+                <a href="https://arxiv.org/abs/2602.04029"
+                   class="external-link button is-normal is-rounded is-dark">
+                  <span class="icon">
+                      <i class="ai ai-arxiv"></i>
+                  </span>
+                  <span>Paper</span>
+                </a>
+              </span>
+              <!-- Code Link. -->
+              <span class="link-block">
+                <a href="https://github.com/snap-stanford/plurel"
+                   class="external-link button is-normal is-rounded is-dark">
+                  <span class="icon">
+                      <i class="fab fa-github"></i>
+                  </span>
+                  <span>Code</span>
+                </a>
+              </span>
+              <!-- Dataset Link. -->
+              <span class="link-block">
+                <a href="https://huggingface.co/datasets/kvignesh1420/plurel"
+                   class="external-link button is-normal is-rounded is-dark">
+                  <span class="icon">
+                      <i class="far fa-images"></i>
+                  </span>
+                  <span>Data</span>
+                </a>
+              </span>
+              <!-- Model Link. -->
+              <span class="link-block">
+                <a href="https://huggingface.co/kvignesh1420/relational-transformer-plurel"
+                   class="external-link button is-normal is-rounded is-dark">
+                  <span class="icon">
+                      <i class="fas fa-cube"></i>
+                  </span>
+                  <span>Models</span>
+                </a>
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="hero teaser">
+  <div class="container is-max-desktop">
+    <div class="hero-body">
+      <img src="./static/images/plurel_animated.gif"
+           alt="PluRel Framework Overview"
+           style="width: 100%; border-radius: 10px;">
+      <h2 class="subtitle has-text-centered">
+        <b>PluRel</b> synthesizes diverse multi-tabular relational databases using Structural Causal Models,
+        enabling scaling laws for Relational Foundation Models.
+      </h2>
+    </div>
+  </div>
+</section>
+
+
+<section class="section">
+  <div class="container is-max-desktop">
+    <!-- Abstract. -->
+    <div class="columns is-centered has-text-centered">
+      <div class="column is-four-fifths">
+        <h2 class="title is-3">Abstract</h2>
+        <div class="content has-text-justified">
+          <p>
+            Relational Foundation Models (RFMs) facilitate data-driven decision-making by learning
+            from complex multi-table databases. However, the diverse relational databases needed to
+            train such models are rarely public due to privacy constraints.
+          </p>
+          <p>
+            We introduce <b>PluRel</b>, a framework to synthesize multi-table relational databases
+            through three stages: modeling schemas with directed graphs, inter-table connectivity
+            with bipartite graphs, and feature distributions via conditional causal mechanisms.
+          </p>
+          <p>
+            We demonstrate that RFM pretraining loss exhibits power-law scaling with synthetic
+            database quantities and tokens. We show that synthetic database scaling improves
+            generalization to real databases and provides strong foundation models for continued
+            pretraining on real data, positioning synthetic data scaling as a promising approach
+            for advancing relational foundation models.
+          </p>
+        </div>
+      </div>
+    </div>
+    <!--/ Abstract. -->
+  </div>
+</section>
+
+
+<section class="section">
+  <div class="container is-max-desktop">
+
+    <div class="columns is-centered has-text-centered">
+      <div class="column is-full-width">
+        <h2 class="title is-3">Method</h2>
+      </div>
+    </div>
+
+    <div class="columns is-centered">
+      <div class="column is-full-width">
+        <div class="content has-text-justified">
+          <p>
+            PluRel generates synthetic relational databases through three sequential stages,
+            modeling databases at the schema level (table structure), connectivity level
+            (row-level relationships), and feature level (cell values).
+          </p>
+          <div class="takeaway-box takeaway-success">
+            <div class="takeaway-title">Three-Stage Pipeline</div>
+            <p><b>Stage 1:</b> Schema &rarr; DAGs define table structure and relationships.
+            <b>Stage 2:</b> Connectivity &rarr; HSBMs populate foreign key links.
+            <b>Stage 3:</b> Features &rarr; SCMs generate cell values with temporal patterns.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stage 1 -->
+    <div class="columns is-centered">
+      <div class="column is-full-width">
+        <h3 class="title is-4">Stage 1: Schema Generation via Directed Graphs</h3>
+        <div class="content has-text-justified">
+          <p>
+            Database schemas are represented as directed acyclic graphs (DAGs), where nodes
+            correspond to tables and edges represent inter-table relationships. A topological
+            ordering of the DAG determines the table generation sequence: initial tables are
+            synthesized independently, while subsequent tables are generated conditionally on their
+            parent tables. Tables are categorized as <i>entity tables</i> (out-degree &ge; 1) or
+            <i>activity tables</i> (remaining nodes). The number of rows, feature columns, and
+            graph topology are all configurable:
+          </p>
+          <pre><code class="language-python">from plurel import Config, DatabaseParams, Choices
+
+config = Config(
+    database_params=DatabaseParams(
+        num_tables_choices=Choices(kind="range", value=[5, 10])
+    ),
+    schema_file="path/to/schema.sql",  # optional: generate from SQL schema
+    cache_dir="~/.cache/plurel",       # optional: cache generated databases
+)</code></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stage 2 -->
+    <div class="columns is-centered">
+      <div class="column is-full-width">
+        <h3 class="title is-4">Stage 2: Foreign Key Generation via Bipartite Graphs</h3>
+        <div class="content has-text-justified">
+          <p>
+            Row-level connectivity between table pairs is populated through primary-foreign key
+            relationships. Each table contains feature columns, a primary key column indexing rows,
+            and optional foreign key columns referencing parent table rows. A Hierarchical
+            Stochastic Block Model (HSBM) controls row-level information locality, allowing rows
+            to depend on many parent rows or a small subset, enabling flexible dependency modeling.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stage 3 -->
+    <div class="columns is-centered">
+      <div class="column is-full-width">
+        <h3 class="title is-4">Stage 3: Feature Generation via Structural Causal Models</h3>
+        <div class="content has-text-justified">
+          <p>
+            Each table is associated with its own SCM defined by a causal graph encoding
+            dependencies between variables. Feature columns correspond to a subset of SCM nodes,
+            supporting numeric, categorical, and boolean types. Tables with foreign keys condition
+            on feature nodes from parent table SCMs.
+          </p>
+          <p>
+            Temporal correlations are modeled through exogenous inputs combining
+            <b>trend</b> (power-law), <b>cycle</b> (sinusoidal), and <b>fluctuation</b>
+            (random noise) components. Node mechanisms use a projection-reconstruction design:
+            predecessor values and parent table features project into a shared latent space via
+            MLPs, aggregate with exogenous inputs, then reconstruct to the target data type.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Usage -->
+    <div class="columns is-centered">
+      <div class="column is-full-width">
+        <h3 class="title is-4">Usage</h3>
+        <div class="content has-text-justified">
+          <p>
+            Synthesizing a complete relational database requires only a seed and a configuration
+            object. The resulting dataset is fully compatible with
+            <a href="https://relbench.stanford.edu/">RelBench</a>:
+          </p>
+          <pre><code class="language-python">from plurel import SyntheticDataset, Config
+
+# create relbench compatible dataset
+dataset = SyntheticDataset(seed=0, config=Config())
+
+# create database which can be cached via relbench APIs
+db = dataset.make_db()</code></pre>
+          <p>
+            For large-scale generation, databases can be synthesized in parallel:
+          </p>
+          <pre><code class="language-bash">pixi run python scripts/synthetic_gen.py \
+    --seed_offset 0 \
+    --num_dbs 1000 \
+    --num_proc 16 \
+    --preprocess</code></pre>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+
+<section class="section">
+  <div class="container is-max-desktop">
+
+    <div class="columns is-centered has-text-centered">
+      <div class="column is-full-width">
+        <h2 class="title is-3">Key Results</h2>
+      </div>
+    </div>
+
+    <!-- Scaling Laws -->
+    <div class="columns is-centered">
+      <div class="column is-full-width">
+        <h3 class="title is-4">Scaling Laws for Data Diversity and Size</h3>
+        <div class="content has-text-justified">
+          <p>
+            We investigate scaling along two axes: the number of synthetic relational databases
+            <b>N</b> (diversity) and the number of pretraining tokens <b>S</b> (size). We find that
+            the validation loss exhibits power-law scaling along both dimensions:
+          </p>
+          <p style="text-align: center;">
+            <i>L(N) = A<sub>N</sub> &middot; N<sup>&minus;&alpha;<sub>N</sub></sup> + C<sub>N</sub></i>
+            &nbsp;&nbsp;&nbsp;&nbsp;
+            <i>L(S) = A<sub>S</sub> &middot; S<sup>&minus;&alpha;<sub>S</sub></sup> + C<sub>S</sub></i>
+          </p>
+          <p>
+            We conduct a comprehensive grid of experiments across
+            (N, S) &isin; {8, 16, 32, 64, 128, 256, 512, 1024} &times; {0.5B, 1B, 2B, 4B, 8B, 16B, 32B} tokens.
+            Both N and S must be scaled simultaneously to optimize loss; scaling one dimension
+            alone produces non-monotonic U-shaped curves indicating underfitting or overfitting.
+          </p>
+          <div class="takeaway-box takeaway-success">
+            <div class="takeaway-title">Key Takeaway</div>
+            <p>RFM pretraining loss follows power-law scaling with both data diversity (N) and size (S), mirroring scaling laws observed in LLMs. Both dimensions must be scaled jointly for optimal performance.</p>
+          </div>
+        </div>
+        <div class="has-text-centered">
+          <img src="./static/images/scaling_law.png"
+               alt="Scaling Law Plot"
+               style="width: 80%; border-radius: 10px;">
+        </div>
+        <br/>
+      </div>
+    </div>
+
+    <!-- Generalization -->
+    <div class="columns is-centered">
+      <div class="column is-full-width">
+        <h3 class="title is-4">Generalization to Real Datasets</h3>
+        <div class="content has-text-justified">
+          <p>
+            We evaluate whether synthetic pretraining benefits transfer to real-world relational
+            databases from <a href="https://relbench.stanford.edu/">RelBench</a>. We compute the
+            masked token prediction loss on the validation splits of all 18 RelBench tasks using the
+            same synthetic scaling configurations.
+          </p>
+          <p>
+            Low-diversity settings (8&ndash;32 synthetic databases) exhibit poor scaling on
+            RelBench, where larger datasets tend to be suboptimal as loss curves show an upward trend.
+            This undesirable behavior is mitigated as the number of databases increases, with
+            benefits from scaling dataset size becoming evident at higher database counts. Models
+            show consistent zero-shot transfer capability despite the distribution mismatch between
+            synthetic and real data.
+          </p>
+          <div class="takeaway-box takeaway-success">
+            <div class="takeaway-title">Key Takeaway</div>
+            <p>Scaling synthetic data diversity is critical for generalization. With sufficient database diversity, synthetic pretraining enables zero-shot transfer to real-world RelBench tasks.</p>
+          </div>
+        </div>
+        <div class="has-text-centered" style="margin-top: 1rem;">
+          <img src="./static/images/generalization_real.png"
+               alt="Generalization to real datasets"
+               style="width: 90%; border-radius: 10px;">
+        </div>
+      </div>
+    </div>
+
+    <!-- Continued Pretraining -->
+    <div class="columns is-centered">
+      <div class="column is-full-width">
+        <h3 class="title is-4">Continued Pretraining on Real Datasets</h3>
+        <div class="content has-text-justified">
+          <p>
+            Synthetic pretraining creates effective base models for downstream tasks when combined
+            with continued pretraining on real data. Using a leave-one-database-out protocol across
+            six RelBench datasets, we show that synthetic + real pretraining consistently outperforms
+            real-data-only pretraining:
+          </p>
+          <p>
+            Synthetic data alone is insufficient for robust zero-shot transfer, highlighting that
+            continued pretraining on real data is critical for distribution alignment. The
+            combination of synthetic and real pretraining yields particularly pronounced benefits for
+            behavior-driven and continuous-valued prediction tasks.
+          </p>
+
+          <h4 class="title is-6" style="margin-top: 1.5rem; margin-bottom: 0.5rem;">Classification (AUROC %)</h4>
+          <div class="table-container">
+            <table class="table is-striped is-hoverable is-fullwidth">
+              <thead>
+                <tr>
+                  <th>Dataset</th><th>Task</th><th>Real only</th><th>Synthetic only</th><th>Synthetic + Real</th><th>Gain</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td>rel-amazon</td><td>user-churn</td><td>64.2</td><td>64.4</td><td>65.0</td><td class="gain-positive">+0.8</td></tr>
+                <tr><td>rel-hm</td><td>user-churn</td><td>67.4</td><td>63.7</td><td>66.0</td><td class="gain-negative">-1.4</td></tr>
+                <tr><td>rel-stack</td><td>user-badge</td><td>80.0</td><td>81.4</td><td>82.0</td><td class="gain-positive">+2.0</td></tr>
+                <tr><td>rel-stack</td><td>user-engage</td><td>78.9</td><td>82.4</td><td>86.2</td><td class="gain-positive">+7.4</td></tr>
+                <tr><td>rel-amazon</td><td>item-churn</td><td>67.6</td><td>71.0</td><td>72.5</td><td class="gain-positive">+4.9</td></tr>
+                <tr><td>rel-avito</td><td>user-visits</td><td>57.2</td><td>63.5</td><td>63.4</td><td class="gain-positive">+6.2</td></tr>
+                <tr><td>rel-avito</td><td>user-clicks</td><td>54.7</td><td>45.9</td><td>47.9</td><td class="gain-negative">-6.8</td></tr>
+                <tr><td>rel-trial</td><td>study-out</td><td>54.4</td><td>53.8</td><td>51.8</td><td class="gain-negative">-2.6</td></tr>
+                <tr><td>rel-f1</td><td>driver-dnf</td><td>80.7</td><td>76.7</td><td>81.0</td><td class="gain-positive">+0.3</td></tr>
+                <tr><td>rel-f1</td><td>driver-top3</td><td>86.9</td><td>82.6</td><td>88.4</td><td class="gain-positive">+1.5</td></tr>
+              </tbody>
+              <tfoot>
+                <tr><td colspan="2"><b>Mean</b></td><td><b>69.2</b></td><td><b>68.5</b></td><td><b>70.4</b></td><td class="gain-positive"><b>+1.2</b></td></tr>
+              </tfoot>
+            </table>
+          </div>
+
+          <h4 class="title is-6" style="margin-bottom: 0.5rem;">Regression (R&sup2; %)</h4>
+          <div class="table-container">
+            <table class="table is-striped is-hoverable is-fullwidth">
+              <thead>
+                <tr>
+                  <th>Dataset</th><th>Task</th><th>Real only</th><th>Synthetic only</th><th>Synthetic + Real</th><th>Gain</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td>rel-hm</td><td>item-sales</td><td>16.0</td><td>4.4</td><td>20.0</td><td class="gain-positive">+4.0</td></tr>
+                <tr><td>rel-amazon</td><td>user-ltv</td><td>14.5</td><td>9.8</td><td>18.5</td><td class="gain-positive">+4.0</td></tr>
+                <tr><td>rel-amazon</td><td>item-ltv</td><td>35.3</td><td>10.7</td><td>40.5</td><td class="gain-positive">+5.2</td></tr>
+                <tr><td>rel-stack</td><td>post-votes</td><td>22.3</td><td>15.7</td><td>25.5</td><td class="gain-positive">+3.2</td></tr>
+                <tr><td>rel-trial</td><td>site-succ</td><td>33.7</td><td>38.3</td><td>38.6</td><td class="gain-positive">+5.0</td></tr>
+                <tr><td>rel-trial</td><td>study-adv</td><td>1.9</td><td>-0.8</td><td>1.6</td><td class="gain-negative">-0.3</td></tr>
+                <tr><td>rel-f1</td><td>driver-pos</td><td>54.3</td><td>41.3</td><td>55.5</td><td class="gain-positive">+1.2</td></tr>
+                <tr><td>rel-avito</td><td>ad-ctr</td><td>3.1</td><td>2.5</td><td>4.9</td><td class="gain-positive">+1.9</td></tr>
+              </tbody>
+              <tfoot>
+                <tr><td colspan="2"><b>Mean</b></td><td><b>22.6</b></td><td><b>15.2</b></td><td><b>25.7</b></td><td class="gain-positive"><b>+3.0</b></td></tr>
+              </tfoot>
+            </table>
+          </div>
+          <div class="takeaway-box takeaway-success">
+            <div class="takeaway-title">Key Takeaway</div>
+            <p>Synthetic + real pretraining outperforms real-only pretraining, with +1.2% mean AUROC and +3.0% mean R&sup2; gains. Synthetic pretraining provides a strong initialization for continued learning on real data.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+
+<section class="section" id="BibTeX">
+  <div class="container is-max-desktop content">
+    <h2 class="title">BibTeX</h2>
+    <pre><code class="nohighlight">@article{kothapalli2026plurel,
+  title={{PluRel:} Synthetic Data unlocks Scaling Laws for Relational Foundation Models},
+  author={Kothapalli, Vignesh and Ranjan, Rishabh and Hudovernik, Valter and Dwivedi, Vijay Prakash and Hoffart, Johannes and Guestrin, Carlos and Leskovec, Jure},
+  journal={arXiv preprint arXiv:2602.04029},
+  year={2026}
+}</code></pre>
+
+    <p>If you use the architecture, training loop or sampler code, please also cite the Relational Transformer paper:</p>
+    <pre><code class="nohighlight">@inproceedings{ranjan2025relationaltransformer,
+    title={{Relational Transformer:} Toward Zero-Shot Foundation Models for Relational Data},
+    author={Rishabh Ranjan and Valter Hudovernik and Mark Znidar and Charilaos Kanatsoulis and Roshan Upendra and Mahmoud Mohammadi and Joe Meyer and Tom Palczewski and Carlos Guestrin and Jure Leskovec},
+    booktitle={The Fourteenth International Conference on Learning Representations},
+    year={2026}
+}</code></pre>
+  </div>
+</section>
+
+
+<footer class="footer">
+  <div class="container">
+    <div class="content has-text-centered">
+      <a class="icon-link"
+         href="https://arxiv.org/pdf/2602.04029">
+        <i class="fas fa-file-pdf"></i>
+      </a>
+      <a class="icon-link" href="https://github.com/snap-stanford/plurel" class="external-link">
+        <i class="fab fa-github"></i>
+      </a>
+    </div>
+    <div class="columns is-centered">
+      <div class="column is-8">
+        <div class="content">
+          <p>
+            This website is licensed under a <a rel="license"
+                                                href="http://creativecommons.org/licenses/by-sa/4.0/">Creative
+            Commons Attribution-ShareAlike 4.0 International License</a>.
+          </p>
+          <p>
+            Website template borrowed from <a href="https://github.com/nerfies/nerfies.github.io">Nerfies</a>.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
