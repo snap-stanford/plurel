@@ -3,6 +3,10 @@
   <p>
 Synthetic Data unlocks Scaling Laws for Relational Foundation Models
 </p>
+
+[![Project Page](https://img.shields.io/badge/Project-Page-blue?style=flat&logo=github)](https://snap-stanford.github.io/plurel/)
+[![arXiv](https://img.shields.io/badge/arXiv-2602.04029-b31b1b?style=flat&logo=arxiv)](https://arxiv.org/abs/2602.04029)
+
 <img src="docs/static/images/scaling_law.png" alt="Scaling Law Plot"/>
 </div>
 <br>
