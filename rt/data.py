@@ -1,15 +1,15 @@
-import maturin_import_hook
-from maturin_import_hook.settings import MaturinSettings
-
-maturin_import_hook.install(settings=MaturinSettings(release=True, uv=True))
-
 import json
 import os
 from functools import cache
 
+import maturin_import_hook
 import numpy as np
 import torch
+from maturin_import_hook.settings import MaturinSettings
 from torch.utils.data import Dataset
+
+maturin_import_hook.install(settings=MaturinSettings(release=True, uv=True))
+
 
 from rustler import Sampler
 
@@ -20,9 +20,7 @@ def _load_column_index(db_name: str) -> dict:
     Load the column index mapping for a dataset (cached).
     """
     home = os.environ.get("HOME", ".")
-    column_index_path = os.path.join(
-        home, "scratch", "pre", db_name, "column_index.json"
-    )
+    column_index_path = os.path.join(home, "scratch", "pre", db_name, "column_index.json")
 
     with open(column_index_path) as f:
         return json.load(f)
@@ -36,9 +34,7 @@ def get_column_index(column_name: str, table_name: str, db_name: str) -> int:
     target = f"{column_name} of {table_name}"
 
     if target not in column_index:
-        raise ValueError(
-            f'Column "{target}" not found in column_index.json for dataset {db_name}.'
-        )
+        raise ValueError(f'Column "{target}" not found in column_index.json for dataset {db_name}.')
 
     return column_index[target]
 
@@ -68,16 +64,12 @@ class RelationalDataset(Dataset):
             elif split == "test":
                 split = "Test"
 
-            table_info_path = (
-                f"{os.environ['HOME']}/scratch/pre/{db_name}/table_info.json"
-            )
+            table_info_path = f"{os.environ['HOME']}/scratch/pre/{db_name}/table_info.json"
             with open(table_info_path) as f:
                 table_info = json.load(f)
 
             table_info_key = (
-                f"{table_name}:Db"
-                if f"{table_name}:Db" in table_info
-                else f"{table_name}:{split}"
+                f"{table_name}:Db" if f"{table_name}:Db" in table_info else f"{table_name}:{split}"
             )
             info = table_info[table_info_key]
             node_idx_offset = info["node_idx_offset"]
@@ -86,9 +78,7 @@ class RelationalDataset(Dataset):
             target_idx = get_column_index(target_column, table_name, db_name)
             target_column_indices.append(target_idx)
 
-            drop_indices = [
-                get_column_index(col, table_name, db_name) for col in columns_to_drop
-            ]
+            drop_indices = [get_column_index(col, table_name, db_name) for col in columns_to_drop]
             drop_column_indices.append(drop_indices)
 
             dataset_tuples.append((db_name, node_idx_offset, num_nodes))
@@ -144,12 +134,8 @@ class RelationalDataset(Dataset):
         out["f2p_nbr_idxs"] = out["f2p_nbr_idxs"].view(-1, self.seq_len, 5)
         out["number_values"] = out["number_values"].view(-1, self.seq_len, 1)
         out["datetime_values"] = out["datetime_values"].view(-1, self.seq_len, 1)
-        out["boolean_values"] = (
-            out["boolean_values"].view(-1, self.seq_len, 1).bfloat16()
-        )
+        out["boolean_values"] = out["boolean_values"].view(-1, self.seq_len, 1).bfloat16()
         out["text_values"] = out["text_values"].view(-1, self.seq_len, self.d_text)
-        out["col_name_values"] = out["col_name_values"].view(
-            -1, self.seq_len, self.d_text
-        )
+        out["col_name_values"] = out["col_name_values"].view(-1, self.seq_len, self.d_text)
 
         return out

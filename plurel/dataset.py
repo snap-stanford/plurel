@@ -74,18 +74,12 @@ class SyntheticDataset(Dataset):
             num_tables (int): Number of tables for the layout based on random DAGs.
             schema_file (str): A predefined SQL based schema file.
         """
-        assert (
-            num_tables or schema_file
-        ), "either `num_tables` or `schema_file` must not be None"
+        assert num_tables or schema_file, "either `num_tables` or `schema_file` must not be None"
         # higher preference to schema file
         if schema_file:
-            table_relationships = self._get_schema_file_table_relationships(
-                schema_file=schema_file
-            )
+            table_relationships = self._get_schema_file_table_relationships(schema_file=schema_file)
         elif num_tables:
-            table_relationships = self._get_random_dag_table_relationships(
-                num_tables=num_tables
-            )
+            table_relationships = self._get_random_dag_table_relationships(num_tables=num_tables)
 
         activity_tables = [
             table
@@ -99,20 +93,14 @@ class SyntheticDataset(Dataset):
                 table_type = TableType.Entity
 
             table_relationships.nodes[table]["type"] = table_type
-            table_relationships.nodes[table]["num_rows"] = self.get_num_rows(
-                table_type=table_type
-            )
+            table_relationships.nodes[table]["num_rows"] = self.get_num_rows(table_type=table_type)
         return table_relationships
 
     def get_num_rows(self, table_type):
         if table_type == TableType.Entity:
-            num_rows = (
-                self.config.database_params.num_rows_entity_table_choices.sample_uniform()
-            )
+            num_rows = self.config.database_params.num_rows_entity_table_choices.sample_uniform()
         if table_type == TableType.Activity:
-            num_rows = (
-                self.config.database_params.num_rows_activity_table_choices.sample_uniform()
-            )
+            num_rows = self.config.database_params.num_rows_activity_table_choices.sample_uniform()
         return num_rows
 
     def implant_nan(self, df, pkey_col, fkey_cols):
@@ -120,9 +108,7 @@ class SyntheticDataset(Dataset):
         num_nan_cells = int(np.floor(nan_perc * len(df)))
         for col_name, _type in df.dtypes.items():
             if col_name not in [pkey_col, *fkey_cols] and _type in [float]:
-                nan_cells_idx = np.random.choice(
-                    df.index, size=num_nan_cells, replace=False
-                )
+                nan_cells_idx = np.random.choice(df.index, size=num_nan_cells, replace=False)
                 df.loc[nan_cells_idx, col_name] = np.nan
         return df
 
@@ -171,12 +157,8 @@ class SyntheticDataset(Dataset):
                 }
 
                 child_table_names = []
-                for child_table_id in sorted(
-                    list(self.table_relationships.successors(table_id))
-                ):
-                    child_table_names.append(
-                        self.table_relationships.nodes[child_table_id]["name"]
-                    )
+                for child_table_id in sorted(list(self.table_relationships.successors(table_id))):
+                    child_table_names.append(self.table_relationships.nodes[child_table_id]["name"])
 
                 foreign_scm_info = {
                     foreign_table_name: table_name_to_scm[foreign_table_name]

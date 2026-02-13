@@ -2,7 +2,6 @@ from rt.main import main
 from rt.tasks import all_tasks, forecast_tasks
 
 if __name__ == "__main__":
-
     load_ckpt_path = "~/scratch/rt_hf_ckpts/synthetic-pretrain_rdb_1024_size_4b.pt"
     model_name = "synthetic-pretrain_rdb_1024_size_4b"
     for leave_db in [

@@ -1,4 +1,3 @@
-
 import pytest
 
 from plurel.config import Choices, Config, DatabaseParams

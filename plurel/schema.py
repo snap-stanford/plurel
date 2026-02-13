@@ -71,9 +71,7 @@ class RandomSchemaGraphBuilder:
             pkey_col = "row_idx"
             fkey_col_to_pkey_table = {
                 f"foreign_row_{idx}": G.nodes[parent_table_id]["name"]
-                for idx, parent_table_id in enumerate(
-                    sorted(list(G.predecessors(table_id)))
-                )
+                for idx, parent_table_id in enumerate(sorted(list(G.predecessors(table_id))))
             }
             fkey_cols = list(fkey_col_to_pkey_table.keys())
 
@@ -88,9 +86,7 @@ class RandomSchemaGraphBuilder:
             for feature_col in feature_cols:
                 _stype = self.config.scm_params.col_stype_choices.sample_uniform()
                 if _stype == stype.categorical:
-                    num_categories = (
-                        self.config.scm_params.num_categories_choices.sample_uniform()
-                    )
+                    num_categories = self.config.scm_params.num_categories_choices.sample_uniform()
                     categories = list(range(num_categories))
                 else:
                     categories = None
@@ -170,13 +166,13 @@ class SQLSchemaGraphBuilder:
                 "_stype": stype.categorical,
                 "categories": [0, 1],
             }
-        if isinstance(t, (Float, Numeric, Integer, BigInteger)):
+        if isinstance(t, Float | Numeric | Integer | BigInteger):
             return {
                 "_stype": stype.numerical,
                 "categories": None,
             }
 
-        if isinstance(t, (Date, DateTime, Time, String)):
+        if isinstance(t, Date | DateTime | Time | String):
             raise ValueError(f"column: {col.name} of type: {t} is not supported")
 
     def _get_enum_values(self, col):

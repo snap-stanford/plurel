@@ -117,9 +117,7 @@ class RelationalBlock(nn.Module):
         # Define attention types
         self.attn_types = ["col", "feat", "nbr"]
 
-        self.norms = nn.ModuleDict(
-            {l: nn.RMSNorm(d_model) for l in self.attn_types + ["ffn"]}
-        )
+        self.norms = nn.ModuleDict({l: nn.RMSNorm(d_model) for l in self.attn_types + ["ffn"]})
 
         self.attns = nn.ModuleDict()
 
@@ -224,9 +222,7 @@ class RelationalTransformer(nn.Module):
         )  # (B, S, S)
 
         # q index is among kv's primary -> foreign neighbors (reverse relation)
-        q_in_f2p = (node_idxs[:, :, None, None] == f2p_nbr_idxs[:, None, :, :]).any(
-            -1
-        )  # (B, S, S)
+        q_in_f2p = (node_idxs[:, :, None, None] == f2p_nbr_idxs[:, None, :, :]).any(-1)  # (B, S, S)
 
         # Same column AND same table
         same_col_table = (col_name_idxs[:, :, None] == col_name_idxs[:, None, :]) & (
@@ -251,15 +247,11 @@ class RelationalTransformer(nn.Module):
             seq_len=seq_len,
             device=device,
         )
-        block_masks = {
-            l: make_block_mask(attn_mask) for l, attn_mask in attn_masks.items()
-        }
+        block_masks = {l: make_block_mask(attn_mask) for l, attn_mask in attn_masks.items()}
 
         x = 0
         x = x + (
-            self.norm_dict["col_name"](
-                self.enc_dict["col_name"](batch["col_name_values"])
-            )
+            self.norm_dict["col_name"](self.enc_dict["col_name"](batch["col_name_values"]))
             * (~is_padding)[..., None]
         )
 
@@ -303,9 +295,7 @@ class RelationalTransformer(nn.Module):
             elif t == "boolean":
                 loss_t = F.binary_cross_entropy_with_logits(
                     yhat, (y > 0).float(), reduction="none"
-                ).mean(
-                    -1
-                )  # (B, S)
+                ).mean(-1)  # (B, S)
             elif t == "text":
                 raise ValueError("masking text not supported")
 

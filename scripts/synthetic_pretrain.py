@@ -2,7 +2,6 @@ from rt.main import main
 from rt.tasks import forecast_tasks, generate_rel_synthetic_tasks
 
 if __name__ == "__main__":
-
     offset = 14000
     num_dbs = 2000
     num_test_dbs = 100
@@ -19,8 +18,7 @@ if __name__ == "__main__":
         eval_tasks = [
             t
             for t in forecast_tasks
-            if t[0]
-            in ["rel-hm", "rel-avito", "rel-stack", "rel-trial", "rel-f1", "rel-amazon"]
+            if t[0] in ["rel-hm", "rel-avito", "rel-stack", "rel-trial", "rel-f1", "rel-amazon"]
         ]
         eval_tasks += rel_synthetic_tasks["test_autocomplete_clf_tasks"]
         eval_tasks += rel_synthetic_tasks["test_autocomplete_reg_tasks"]

@@ -2,7 +2,6 @@ from rt.main import main
 from rt.tasks import all_tasks, forecast_tasks
 
 if __name__ == "__main__":
-
     for leave_db in [
         "rel-amazon",
         "rel-hm",

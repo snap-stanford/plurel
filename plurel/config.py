@@ -33,24 +33,16 @@ class Choices:
             )
         if self.kind == "range":
             if not isinstance(self.value, list):
-                raise ValueError(
-                    f"'value' of type '{type(self.value)}' is not supported"
-                )
+                raise ValueError(f"'value' of type '{type(self.value)}' is not supported")
             if len(self.value) != 2:
-                raise ValueError(
-                    "'value' must have two elements to support 'range' based sampling"
-                )
+                raise ValueError("'value' must have two elements to support 'range' based sampling")
 
     def sample_uniform(self, size: int | None = None, replace: bool = False):
         if self.kind == "range":
             if type(self.value[0]) == int:
-                return np.random.randint(
-                    low=self.value[0], high=self.value[1] + 1, size=size
-                )
+                return np.random.randint(low=self.value[0], high=self.value[1] + 1, size=size)
             elif type(self.value[0]) == float:
-                return np.random.uniform(
-                    low=self.value[0], high=self.value[1], size=size
-                )
+                return np.random.uniform(low=self.value[0], high=self.value[1], size=size)
             else:
                 raise ValueError(
                     f"Unsupported data type: {type(self.value[0])} for uniform sampling. The 'value' elements should be either int/float."
@@ -64,7 +56,7 @@ class Choices:
                 low = self.value[0]
                 high = self.value[1] + 1
                 choices = np.arange(low, high)
-                probs = 1 / (choices ** exponent)
+                probs = 1 / (choices**exponent)
                 probs /= probs.sum()
                 return np.random.choice(choices, size=size, replace=replace, p=probs)
             else:
@@ -108,9 +100,7 @@ class SCMParams:
     )
     scm_col_node_perc_choices: Choices = Choices(kind="range", value=[0.3, 0.9])
     num_categories_choices: Choices = Choices(kind="range", value=[2, 10])
-    col_stype_choices: Choices = Choices(
-        kind="set", value=[stype.categorical, stype.numerical]
-    )
+    col_stype_choices: Choices = Choices(kind="set", value=[stype.categorical, stype.numerical])
     initialization_choices: Choices = Choices(
         kind="set",
         value=[
@@ -143,9 +133,7 @@ class SCMParams:
     activity_table_ts_trend_scale_choices: Choices = Choices(kind="set", value=[-1, 1])
     entity_table_ts_trend_scale: float = 0.0
 
-    ts_cycle_freq_perc_choices: Choices = Choices(
-        kind="set", value=[i / 10 for i in range(1, 11)]
-    )
+    ts_cycle_freq_perc_choices: Choices = Choices(kind="set", value=[i / 10 for i in range(1, 11)])
     activity_table_ts_cycle_scale_choices: Choices = Choices(kind="set", value=[-1, 1])
     entity_table_ts_cycle_scale: float = 0.0
 

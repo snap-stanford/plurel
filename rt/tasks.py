@@ -55,16 +55,8 @@ def get_clf_reg_tasks(seeds, max_db_count, per_db_task_limit=None):
         set_random_seed(0)
         np.random.shuffle(db_clf_tasks)
         np.random.shuffle(db_reg_tasks)
-        db_clf_tasks = (
-            db_clf_tasks[: per_db_task_limit // 2]
-            if per_db_task_limit
-            else db_clf_tasks
-        )
-        db_reg_tasks = (
-            db_reg_tasks[: per_db_task_limit // 2]
-            if per_db_task_limit
-            else db_reg_tasks
-        )
+        db_clf_tasks = db_clf_tasks[: per_db_task_limit // 2] if per_db_task_limit else db_clf_tasks
+        db_reg_tasks = db_reg_tasks[: per_db_task_limit // 2] if per_db_task_limit else db_reg_tasks
 
         all_db_clf_tasks.extend(db_clf_tasks)
         all_db_reg_tasks.extend(db_reg_tasks)
@@ -89,7 +81,6 @@ def generate_rel_synthetic_tasks(
     skip_reg_tasks: bool = False,
     skip_clf_tasks: bool = False,
 ):
-
     set_random_seed(0)
     seeds = [idx + offset for idx in range(num_dbs)]
 
@@ -220,10 +211,7 @@ autocomplete_reg_tasks = [
 ]
 
 all_tasks = (
-    forecast_clf_tasks
-    + forecast_reg_tasks
-    + autocomplete_clf_tasks
-    + autocomplete_reg_tasks
+    forecast_clf_tasks + forecast_reg_tasks + autocomplete_clf_tasks + autocomplete_reg_tasks
 )
 
 forecast_tasks = forecast_clf_tasks + forecast_reg_tasks

@@ -45,7 +45,7 @@ $ pixi run ruff check .
 $ pixi run ruff format .
 
 # Install pre-commit hooks
-$ pre-commit install
+$ pixi run pre-commit install
 ```
 
 

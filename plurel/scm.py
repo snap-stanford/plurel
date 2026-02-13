@@ -63,16 +63,14 @@ class SCM:
             + int(np.ceil(self.num_col_nodes / scm_col_node_perc))
             + 3  # buffer to avoid empty graphs
         )
-        self.dag = dag_class(
-            num_nodes=num_nodes, dag_params=self.dag_params, seed=self.seed
-        )
+        self.dag = dag_class(num_nodes=num_nodes, dag_params=self.dag_params, seed=self.seed)
         self.num_edges = len(self.dag.graph.edges)
 
     def validate_foreign_scms(self):
         for foreign_table_name, scm in self.foreign_scm_info.items():
-            assert hasattr(
-                scm, "df"
-            ), f"the foreign_scm for table: {foreign_table_name} does not contain the `self.df` attribute"
+            assert hasattr(scm, "df"), (
+                f"the foreign_scm for table: {foreign_table_name} does not contain the `self.df` attribute"
+            )
 
     def _get_categorical_encoder(self, num_categories: int):
         return CategoricalEncoder(
@@ -130,9 +128,7 @@ class SCM:
             if table_type == TableType.Activity
             else self.scm_params.entity_table_ts_noise_scale
         )
-        cycle_frequency_perc = (
-            self.scm_params.ts_cycle_freq_perc_choices.sample_uniform()
-        )
+        cycle_frequency_perc = self.scm_params.ts_cycle_freq_perc_choices.sample_uniform()
         cycle_scale = (
             self.scm_params.activity_table_ts_cycle_scale_choices.sample_uniform()
             if table_type == TableType.Activity
@@ -193,16 +189,14 @@ class SCM:
                 _stype = self.scm_params.col_stype_choices.sample_uniform()
                 self.dag.graph.nodes[node]["_stype"] = _stype
                 if _stype == stype.categorical:
-                    num_categories = (
-                        self.scm_params.num_categories_choices.sample_uniform()
-                    )
+                    num_categories = self.scm_params.num_categories_choices.sample_uniform()
                 else:
                     num_categories = None
                 self.dag.graph.nodes[node]["num_categories"] = num_categories
 
-            self.dag.graph.nodes[node][
-                "noise_dist"
-            ] = self.scm_params.node_noise_dist_choices.sample_uniform()
+            self.dag.graph.nodes[node]["noise_dist"] = (
+                self.scm_params.node_noise_dist_choices.sample_uniform()
+            )
             self.dag.graph.nodes[node]["decoder"] = self.get_decoder(
                 _stype=_stype, num_categories=num_categories
             )
@@ -216,16 +210,12 @@ class SCM:
     def _reset_edge_attributes(self):
         for parent_node, child_node in self.dag.graph.edges:
             parent_node_stype = self.dag.graph.nodes[parent_node]["_stype"]
-            parent_node_num_categories = self.dag.graph.nodes[parent_node][
-                "num_categories"
-            ]
+            parent_node_num_categories = self.dag.graph.nodes[parent_node]["num_categories"]
             self.dag.graph.edges[parent_node, child_node]["encoder"] = self.get_encoder(
                 _stype=parent_node_stype, num_categories=parent_node_num_categories
             )
 
-    def propagate(
-        self, row_idx: int, foreign_row_idxs: list[int], foreign_scms: list[SCM]
-    ):
+    def propagate(self, row_idx: int, foreign_row_idxs: list[int], foreign_scms: list[SCM]):
         foreign_scms_row_embds: list[list] = []
         for foreign_row_idx, foreign_scm in zip(foreign_row_idxs, foreign_scms):
             foreign_row_embds = foreign_scm.collate_feature_embeddings(
@@ -239,9 +229,7 @@ class SCM:
             for node in gen:
                 node_stype = self.dag.graph.nodes[node]["_stype"]
                 if node in self.source_nodes:
-                    value = self.source_node_to_ts_data_gen[node].get_value(
-                        row_idx=row_idx
-                    )
+                    value = self.source_node_to_ts_data_gen[node].get_value(row_idx=row_idx)
                     if node_stype == stype.categorical:
                         value = torch.LongTensor([value])
                     else:
@@ -254,18 +242,14 @@ class SCM:
                     # directly add noise
                     noise_dist = self.dag.graph.nodes[node]["noise_dist"]
                     node_emb = (
-                        noise_dist.sample(
-                            sample_shape=(self.scm_params.mlp_emb_dim,)
-                        ).squeeze()
+                        noise_dist.sample(sample_shape=(self.scm_params.mlp_emb_dim,)).squeeze()
                         / self.scm_params.mlp_emb_dim
                     )
                     for parent_node in parent_nodes:
                         parent_attrs = self.dag.graph.nodes[parent_node]
                         encoder = self.dag.graph.edges[parent_node, node]["encoder"]
                         parent_emb = encoder(parent_attrs["value"]).squeeze()
-                        weight = self.dag.graph.get_edge_data(parent_node, node)[
-                            "weight"
-                        ]
+                        weight = self.dag.graph.get_edge_data(parent_node, node)["weight"]
                         node_emb += weight * parent_emb
 
                     for foreign_row_embds in foreign_scms_row_embds:
@@ -338,9 +322,7 @@ class SCM:
         self.df = pd.DataFrame(
             [
                 self.generate_row(row_idx=row_idx)
-                for row_idx in tqdm(
-                    range(self.num_rows), desc="generating rows", leave=False
-                )
+                for row_idx in tqdm(range(self.num_rows), desc="generating rows", leave=False)
             ]
         )
         if min_timestamp and max_timestamp:
@@ -356,12 +338,10 @@ class SCM:
         for f_idx, node in enumerate(sorted(self.col_nodes)):
             col_name = self.dag.graph.nodes[node]["col_name"]
             col_to_stype[col_name] = self.dag.graph.nodes[node]["_stype"]
-            col_to_num_categories[col_name] = self.dag.graph.nodes[node][
-                "num_categories"
+            col_to_num_categories[col_name] = self.dag.graph.nodes[node]["num_categories"]
+            col_to_collation_encoder[col_name] = self.dag.graph.nodes[node]["collation_encoders"][
+                (self.table_name, child_table_name)
             ]
-            col_to_collation_encoder[col_name] = self.dag.graph.nodes[node][
-                "collation_encoders"
-            ][(self.table_name, child_table_name)]
         row = self.df.iloc[row_idx].to_dict()
         row_embds = []
         num_cols = len(col_to_stype)

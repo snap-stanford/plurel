@@ -34,9 +34,7 @@ def test_scm():
         )
         df = scm.generate_df(
             num_rows=10,
-            table_type=(
-                TableType.Entity if np.random.rand() < 0.5 else TableType.Activity
-            ),
+            table_type=(TableType.Entity if np.random.rand() < 0.5 else TableType.Activity),
         )
         assert len(df) == 10
         scms.append(scm)

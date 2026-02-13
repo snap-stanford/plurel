@@ -78,7 +78,6 @@ class ErdosRenyi(DAG):
 
 
 class BarabasiAlbert(DAG):
-
     def shuffle_nodes(self, graph):
         shuffled_nodes = list(graph.nodes())
         np.random.shuffle(shuffled_nodes)
@@ -91,10 +90,7 @@ class BarabasiAlbert(DAG):
         graph = graph.copy()
         for node in sinks:
             incoming_edges = list(graph.in_edges(node))
-            if (
-                len(incoming_edges) > 1
-                and np.random.rand() < self.dag_params.ba_sink_edge_dropout
-            ):
+            if len(incoming_edges) > 1 and np.random.rand() < self.dag_params.ba_sink_edge_dropout:
                 edge_idx = np.random.randint(len(incoming_edges))
                 edge = incoming_edges[edge_idx]
                 graph.remove_edge(*edge)
@@ -117,12 +113,10 @@ class BarabasiAlbert(DAG):
         return graph
 
     def sample(self, num_nodes: int) -> nx.DiGraph:
-        graph = nx.barabasi_albert_graph(
-            n=num_nodes, m=self.dag_params.ba_m, seed=self.seed
+        graph = nx.barabasi_albert_graph(n=num_nodes, m=self.dag_params.ba_m, seed=self.seed)
+        assert nx.is_connected(graph.to_undirected(as_view=True)), (
+            "nx generated a non-connected graph. Adjust parameters to increase connectivity."
         )
-        assert nx.is_connected(
-            graph.to_undirected(as_view=True)
-        ), "nx generated a non-connected graph. Adjust parameters to increase connectivity."
         ordered_edges = self.order_edges(edges=graph.edges())
         weighted_edges = self.add_edge_weights(edges=ordered_edges)
         graph = nx.DiGraph(weighted_edges)
@@ -142,9 +136,9 @@ class RandomTree(DAG):
 
     def sample(self, num_nodes: int) -> nx.DiGraph:
         graph = nx.random_labeled_tree(num_nodes, seed=self.seed)
-        assert nx.is_connected(
-            graph.to_undirected(as_view=True)
-        ), "nx generated a non-connected graph. Adjust parameters to increase connectivity."
+        assert nx.is_connected(graph.to_undirected(as_view=True)), (
+            "nx generated a non-connected graph. Adjust parameters to increase connectivity."
+        )
         root_node = np.random.choice(graph.nodes).item()
         directed_edges = list(nx.bfs_edges(graph, root_node))
         ordered_edges = self.order_edges(edges=directed_edges)
@@ -163,7 +157,6 @@ class ReverseRandomTree(RandomTree):
 
 
 class WattsStrogatz(DAG):
-
     def sample(self, num_nodes: int) -> nx.DiGraph:
         p = self.dag_params.ws_rewire_p_choices.sample_uniform()
         k = np.random.choice([2, 4])

@@ -13,7 +13,5 @@ def test_dag(seed, dag_class, num_nodes):
     dag = dag_class(num_nodes=num_nodes, dag_params=DAGParams(), seed=seed)
     assert dag.size() == num_nodes, dag.layers
 
-    sources = [
-        node_id for node_id in dag.graph.nodes if dag.graph.in_degree(node_id) == 0
-    ]
+    sources = [node_id for node_id in dag.graph.nodes if dag.graph.in_degree(node_id) == 0]
     assert len(sources) > 0

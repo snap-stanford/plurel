@@ -43,6 +43,7 @@ wandb = ">=0.24.1,<0.25"
 rust = "*"
 uv = "*"
 ruff = "*"
+pre-commit = ">=4.5.1,<5"
 
 [tool.ruff]
 line-length = 100
@@ -50,7 +51,7 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP"]
-ignore = ["E501", "E721", "E741", "F841"]
+ignore = ["E402", "E501", "E721", "E741", "F841"]
 
 [tool.ruff.format]
 quote-style = "double"

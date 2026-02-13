@@ -282,9 +282,7 @@ def main(
                         eval_load_times.append(eval_load_time)
 
                     true_batch_size = batch.pop("true_batch_size")
-                    _eval_batch_size = (
-                        eval_batch_size if "synthetic" not in db_name else 10
-                    )
+                    _eval_batch_size = eval_batch_size if "synthetic" not in db_name else 10
                     if true_batch_size < _eval_batch_size:
                         continue
                     for k in batch:
@@ -390,9 +388,9 @@ def main(
                 metrics[split][("relbench-loss", "")] = metric
 
             if len(synthetic_db_losses) > 0:
-                assert (
-                    len(synthetic_db_losses) == 1
-                ), "only 'val' split was supposed to be used for consistency. there are no separate 'val/'test' splits"
+                assert len(synthetic_db_losses) == 1, (
+                    "only 'val' split was supposed to be used for consistency. there are no separate 'val/'test' splits"
+                )
                 for split, losses in synthetic_db_losses.items():
                     k = f"loss/rel-synthetic/{split}"
                     print(f"split={split}, rel-synthetic losses={losses}")
@@ -437,9 +435,7 @@ def main(
                 if save_ckpt_dir is not None:
                     for (db_name, table_name), metric in metrics["val"].items():
                         # Eval metric is always higher is better (auc, r2)
-                        best_metric = best_val_metrics.get(
-                            (db_name, table_name), -float("inf")
-                        )
+                        best_metric = best_val_metrics.get((db_name, table_name), -float("inf"))
                         if metric > best_metric:
                             best_val_metrics[(db_name, table_name)] = metric
                             best_test_metrics[(db_name, table_name)] = (
@@ -447,9 +443,7 @@ def main(
                                 if (db_name, table_name) in metrics["test"]
                                 else float("nan")
                             )
-                            checkpoint(
-                                best=True, db_name=db_name, table_name=table_name
-                            )
+                            checkpoint(best=True, db_name=db_name, table_name=table_name)
                         else:
                             checkpoint()
 
@@ -472,12 +466,8 @@ def main(
             opt.zero_grad(set_to_none=True)
             loss.backward()
 
-            grad_norm = get_total_norm(
-                [p.grad for p in net.parameters() if p.grad is not None]
-            )
-            clip_grads_with_norm_(
-                net.parameters(), max_norm=max_grad_norm, total_norm=grad_norm
-            )
+            grad_norm = get_total_norm([p.grad for p in net.parameters() if p.grad is not None])
+            clip_grads_with_norm_(net.parameters(), max_norm=max_grad_norm, total_norm=grad_norm)
 
             opt.step()
             if lr_schedule:

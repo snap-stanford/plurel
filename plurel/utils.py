@@ -44,9 +44,7 @@ def assign_cluster_at_levels(num_nodes: int, hierarchy: list):
 
 
 def get_probs_at_levels(hierarchy_a: list, hierarchy_b: list):
-    assert len(hierarchy_a) == len(
-        hierarchy_b
-    ), "only similar hierarchy levels are supported"
+    assert len(hierarchy_a) == len(hierarchy_b), "only similar hierarchy levels are supported"
 
     num_levels = len(hierarchy_a)
     probs_at_levels = []
@@ -78,19 +76,11 @@ def get_nodes_connect_prob(
 
 
 def get_bipartite_hsbm(size_a: int, size_b: int, hierarchy_a: list, hierarchy_b: list):
-    assert len(hierarchy_a) == len(
-        hierarchy_b
-    ), "only similar hierarchy levels are supported"
+    assert len(hierarchy_a) == len(hierarchy_b), "only similar hierarchy levels are supported"
 
-    cluster_at_levels_a = assign_cluster_at_levels(
-        num_nodes=size_a, hierarchy=hierarchy_a
-    )
-    cluster_at_levels_b = assign_cluster_at_levels(
-        num_nodes=size_b, hierarchy=hierarchy_b
-    )
-    probs_at_levels = get_probs_at_levels(
-        hierarchy_a=hierarchy_a, hierarchy_b=hierarchy_b
-    )
+    cluster_at_levels_a = assign_cluster_at_levels(num_nodes=size_a, hierarchy=hierarchy_a)
+    cluster_at_levels_b = assign_cluster_at_levels(num_nodes=size_b, hierarchy=hierarchy_b)
+    probs_at_levels = get_probs_at_levels(hierarchy_a=hierarchy_a, hierarchy_b=hierarchy_b)
 
     bi_hsbm = nx.DiGraph()
 
@@ -110,9 +100,7 @@ def get_bipartite_hsbm(size_a: int, size_b: int, hierarchy_a: list, hierarchy_b:
             hierarchy=list(cluster_at_levels_b[b_idx]),
         )
 
-    for b_idx, b_node in tqdm(
-        enumerate(nodes_b), desc="adding edges in bi_hsbm", leave=False
-    ):
+    for b_idx, b_node in tqdm(enumerate(nodes_b), desc="adding edges in bi_hsbm", leave=False):
         probs = np.array(
             [
                 get_nodes_connect_prob(
@@ -149,14 +137,9 @@ def get_bipartite_pl(size_a: int, size_b: int, exponent: float):
 
     shuffled_a_indxs = np.arange(size_a)
     np.random.shuffle(shuffled_a_indxs)
-    for b_idx, b_node in tqdm(
-        enumerate(nodes_b), desc="adding edges in bi_pl", leave=False
-    ):
+    for b_idx, b_node in tqdm(enumerate(nodes_b), desc="adding edges in bi_pl", leave=False):
         probs = np.array(
-            [
-                1 - np.pow(shuffled_a_indxs[a_idx] / size_a, exponent)
-                for a_idx in range(size_a)
-            ]
+            [1 - np.pow(shuffled_a_indxs[a_idx] / size_a, exponent) for a_idx in range(size_a)]
         )
         try:
             probs = probs / probs.sum()
@@ -185,7 +168,7 @@ class Snapshot:
             return {k: self._serialize(v) for k, v in value.data.items()}
         elif isinstance(value, dict):
             return {k: self._serialize(v) for k, v in value.items()}
-        elif isinstance(value, (datetime, pd.Timestamp)):
+        elif isinstance(value, datetime | pd.Timestamp):
             return value.isoformat()
         elif isinstance(value, np.generic):
             return value.item()

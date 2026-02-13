@@ -8,9 +8,7 @@ import numpy as np
 
 
 class Cycle:
-    def __init__(
-        self, min_value: float, max_value: float, frequency: int, scale: float
-    ):
+    def __init__(self, min_value: float, max_value: float, frequency: int, scale: float):
         self.min_value = min_value
         self.max_value = max_value
         self.frequency = frequency
@@ -91,9 +89,7 @@ class CategoricalTSDataGenerator:
         self.ts_data_gens = ts_data_gens
 
     def get_value(self, row_idx):
-        vals = [
-            ts_data_gen.get_value(row_idx=row_idx) for ts_data_gen in self.ts_data_gens
-        ]
+        vals = [ts_data_gen.get_value(row_idx=row_idx) for ts_data_gen in self.ts_data_gens]
         vals = np.array(vals)
         exp_vals = np.exp(vals - np.max(vals))  # stable exponent
         probs = exp_vals / exp_vals.sum()
