@@ -36,6 +36,18 @@ class DAG(abc.ABC):
         assert nx.is_directed_acyclic_graph(self.graph)
         assert nx.is_connected(self.graph.to_undirected(as_view=True))
 
+    def ensure_connected(self, graph: nx.Graph) -> nx.Graph:
+        """Ensure the graph is connected by adding edges between disconnected components."""
+        if nx.is_connected(graph):
+            return graph
+        graph = graph.copy()
+        comps = list(nx.connected_components(graph))
+        for c1, c2 in zip(comps[:-1], comps[1:]):
+            u = np.random.choice(list(c1))
+            v = np.random.choice(list(c2))
+            graph.add_edge(u, v)
+        return graph
+
     def order_edges(self, edges: list):
         return [(src, dst) for (src, dst) in edges if src < dst]
 
@@ -60,21 +72,12 @@ class ErdosRenyi(DAG):
     """
 
     def sample(self, num_nodes: int) -> nx.DiGraph:
-        is_connected = False
-        while not is_connected:
-            p = self.dag_params.er_p_choices.sample_uniform()
-            graph = nx.gnp_random_graph(n=num_nodes, p=p, seed=self.seed, directed=True)
-            ordered_edges = self.order_edges(edges=graph.edges())
-            weighted_edges = self.add_edge_weights(edges=ordered_edges)
-            graph = nx.DiGraph(weighted_edges)
-            try:
-                is_connected = (
-                    nx.is_connected(graph.to_undirected(as_view=True))
-                    and len(graph.nodes) == num_nodes
-                )
-            except Exception:
-                is_connected = False
-        return graph
+        p = self.dag_params.er_p_choices.sample_uniform()
+        graph = nx.gnp_random_graph(n=num_nodes, p=p, seed=self.seed, directed=True)
+        graph = self.ensure_connected(graph.to_undirected())
+        ordered_edges = self.order_edges(edges=graph.edges())
+        weighted_edges = self.add_edge_weights(edges=ordered_edges)
+        return nx.DiGraph(weighted_edges)
 
 
 class BarabasiAlbert(DAG):
@@ -82,8 +85,8 @@ class BarabasiAlbert(DAG):
         shuffled_nodes = list(graph.nodes())
         np.random.shuffle(shuffled_nodes)
         mapping = {old: new for old, new in zip(graph.nodes(), shuffled_nodes)}
-        new_graph = nx.relabel_nodes(G=graph, mapping=mapping)
-        return new_graph
+        graph = nx.relabel_nodes(G=graph, mapping=mapping)
+        return graph
 
     def sparsify_leaves(self, graph: nx.DiGraph):
         sinks = [node for node in graph.nodes if graph.out_degree(node) == 0]
@@ -114,9 +117,7 @@ class BarabasiAlbert(DAG):
 
     def sample(self, num_nodes: int) -> nx.DiGraph:
         graph = nx.barabasi_albert_graph(n=num_nodes, m=self.dag_params.ba_m, seed=self.seed)
-        assert nx.is_connected(graph.to_undirected(as_view=True)), (
-            "nx generated a non-connected graph. Adjust parameters to increase connectivity."
-        )
+        graph = self.ensure_connected(graph)
         ordered_edges = self.order_edges(edges=graph.edges())
         weighted_edges = self.add_edge_weights(edges=ordered_edges)
         graph = nx.DiGraph(weighted_edges)
@@ -136,9 +137,7 @@ class RandomTree(DAG):
 
     def sample(self, num_nodes: int) -> nx.DiGraph:
         graph = nx.random_labeled_tree(num_nodes, seed=self.seed)
-        assert nx.is_connected(graph.to_undirected(as_view=True)), (
-            "nx generated a non-connected graph. Adjust parameters to increase connectivity."
-        )
+        graph = self.ensure_connected(graph)
         root_node = np.random.choice(graph.nodes).item()
         directed_edges = list(nx.bfs_edges(graph, root_node))
         ordered_edges = self.order_edges(edges=directed_edges)
@@ -163,21 +162,16 @@ class WattsStrogatz(DAG):
         if k > num_nodes:
             k = 2
 
-        G = nx.watts_strogatz_graph(
+        graph = nx.watts_strogatz_graph(
             n=num_nodes,
             k=k,
             p=p,
             seed=self.seed,
         )
 
-        if not nx.is_connected(G):
-            comps = list(nx.connected_components(G))
-            for c1, c2 in zip(comps[:-1], comps[1:]):
-                u = np.random.choice(list(c1))
-                v = np.random.choice(list(c2))
-                G.add_edge(u, v)
+        graph = self.ensure_connected(graph)
 
-        ordered_edges = self.order_edges(G.edges())
+        ordered_edges = self.order_edges(graph.edges())
         weighted_edges = self.add_edge_weights(ordered_edges)
         return nx.DiGraph(weighted_edges)
 
