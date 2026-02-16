@@ -3,6 +3,7 @@ import os
 from functools import cache
 
 import maturin_import_hook
+import ml_dtypes  # noqa: F401
 import numpy as np
 import torch
 from maturin_import_hook.settings import MaturinSettings

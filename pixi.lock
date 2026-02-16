@@ -4309,7 +4309,7 @@ packages:
 - pypi: ./
   name: plurel
   version: 0.1.0
-  sha256: 0d10af80e4e8b959a3f6be379012a0f99f72591308999326c3d190aa96da0719
+  sha256: cfc6a08d90c41b71eec33e578032bd02aa605104e8246c26ed07605c0addc7c2
   requires_python: '>=3.12'
   editable: true
 - pypi: https://files.pythonhosted.org/packages/08/75/ec73e38812bca7c2240aff481b9ddff20d1ad2f10dee4b3353f5eeaacdab/polars-1.37.1-py3-none-any.whl
