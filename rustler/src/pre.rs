@@ -66,7 +66,7 @@ fn cast_col_to_bool(df: DataFrame, col_name: &str) -> Result<DataFrame, PolarsEr
 
 pub fn main(cli: Cli) {
     let dataset_path = format!(
-        "{}/scratch/relbench-synthetic/{}",
+        "{}/scratch/relbench/{}",
         var("HOME").unwrap(),
         cli.db_name
     );

@@ -49,6 +49,10 @@ $ pixi run ruff format .
 
 # Install pre-commit hooks
 $ pixi run pre-commit install
+
+# link cache repository
+$ mkdir ~/scratch
+$ ln -s ~/.cache/relbench ~/scratch/relbench
 ```
 
 
@@ -83,7 +87,7 @@ from plurel import Config, DatabaseParams, SCMParams
 config = Config(
     database_params=DatabaseParams(num_tables_choices=Choices(kind="range", value=[5, 10])),
     schema_file="path/to/schema.sql",  # optional: generate from SQL schema
-    cache_dir="~/.cache/plurel",       # optional: cache generated databases
+    cache_dir="~/.cache/relbench",       # optional: cache generated databases
 )
 ```
 
