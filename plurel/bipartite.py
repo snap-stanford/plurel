@@ -102,32 +102,3 @@ def get_bipartite_hsbm(size_a: int, size_b: int, hierarchy_a: list, hierarchy_b:
 
     assert nx.is_bipartite(bi_hsbm)
     return bi_hsbm
-
-
-def get_bipartite_pl(size_a: int, size_b: int, exponent: float):
-    bi_pl = nx.DiGraph()
-
-    nodes_a = [f"a{i}" for i in range(size_a)]
-    nodes_b = [f"b{j}" for j in range(size_b)]
-
-    for a_idx, a_node in enumerate(nodes_a):
-        bi_pl.add_node(a_node, node_idx=a_idx, bipartite=0)
-    for b_idx, b_node in enumerate(nodes_b):
-        bi_pl.add_node(b_node, node_idx=b_idx, bipartite=1)
-
-    shuffled_a_indxs = np.arange(size_a)
-    np.random.shuffle(shuffled_a_indxs)
-    for b_idx, b_node in tqdm(enumerate(nodes_b), desc="adding edges in bi_pl", leave=False):
-        probs = np.array(
-            [1 - np.pow(shuffled_a_indxs[a_idx] / size_a, exponent) for a_idx in range(size_a)]
-        )
-        try:
-            probs = probs / probs.sum()
-        except ValueError:
-            probs = None
-        a_idx = np.random.choice(range(size_a), p=probs)
-        bi_pl.add_edge(nodes_a[a_idx], b_node)
-
-    assert nx.is_bipartite(bi_pl)
-
-    return bi_pl
