@@ -11,17 +11,12 @@ import torch
 from torch_frame import stype
 from tqdm import tqdm
 
+from plurel.bipartite import get_bipartite_hsbm
 from plurel.config import DAGParams, SCMParams
 from plurel.dag import DAG_REGISTRY
+from plurel.transforms import MLP, CategoricalDecoder, CategoricalEncoder
 from plurel.ts import CategoricalTSDataGenerator, TSDataGenerator
-from plurel.utils import (
-    MLP,
-    CategoricalDecoder,
-    CategoricalEncoder,
-    TableType,
-    get_bipartite_hsbm,
-    set_random_seed,
-)
+from plurel.utils import TableType, set_random_seed
 
 
 class SCM:

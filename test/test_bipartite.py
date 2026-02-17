@@ -2,7 +2,7 @@ import itertools
 
 import pytest
 
-from plurel.utils import get_bipartite_hsbm
+from plurel.bipartite import get_bipartite_hsbm
 
 sizes_a = [10, 30, 50]
 sizes_b = [20, 60, 100]
