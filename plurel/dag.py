@@ -194,6 +194,34 @@ class WattsStrogatz(DAG):
         return nx.DiGraph(weighted_edges)
 
 
+class RandomCauchy(DAG):
+    def _sigmoid(self, x: np.ndarray) -> np.ndarray:
+        return 1.0 / (1.0 + np.exp(-x))
+
+    def sample(self, num_nodes: int) -> nx.DiGraph:
+        if num_nodes < 2:
+            return self._isolated_graph(num_nodes)
+
+        A = np.random.standard_cauchy()
+        B = np.random.standard_cauchy(num_nodes)
+        C = np.random.standard_cauchy(num_nodes)
+
+        edges = []
+        for i in range(num_nodes):
+            for j in range(i + 1, num_nodes):
+                p_ij = self._sigmoid(A + B[i] + C[j])
+                if np.random.rand() < p_ij:
+                    edges.append((i, j))
+
+        graph = nx.Graph()
+        graph.add_nodes_from(range(num_nodes))
+        graph.add_edges_from(edges)
+        graph = self.ensure_connected(graph)
+        ordered_edges = self.order_edges(graph.edges())
+        weighted_edges = self.add_edge_weights(ordered_edges)
+        return nx.DiGraph(weighted_edges)
+
+
 class Layered(DAG):
     """
     Layered / MLP-style DAG.
@@ -282,4 +310,5 @@ DAG_REGISTRY = {
     "ReverseRandomTree": ReverseRandomTree,
     "WattsStrogatz": WattsStrogatz,
     "Layered": Layered,
+    "RandomCauchy": RandomCauchy,
 }
