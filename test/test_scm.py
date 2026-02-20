@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 from torch_frame import stype
 
 from plurel.config import DAGParams, SCMParams
@@ -7,7 +8,8 @@ from plurel.scm import SCM
 from plurel.utils import TableType
 
 
-def test_scm():
+@pytest.mark.parametrize("seed", list(range(5)))
+def test_scm(seed):
     scms = []
     table_ids = list(range(len(DAG_REGISTRY)))
     dag_classes = list(DAG_REGISTRY.keys())
@@ -30,7 +32,7 @@ def test_scm():
             foreign_scm_info={},
             scm_params=SCMParams(),
             dag_params=DAGParams(),
-            seed=table_id,
+            seed=seed * 100 + table_id,
         )
         df = scm.generate_df(
             num_rows=10,

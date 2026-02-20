@@ -16,7 +16,7 @@ from rt.tasks import get_tasks_info, is_valid_db
 pytestmark = pytest.mark.xdist_group("dev_run")
 
 TAG = "pytest"
-NUM_DBS = 6
+NUM_DBS = 10
 NUM_TEST_DBS = 1
 SEED_OFFSET = 0
 SEEDS = list(range(SEED_OFFSET, SEED_OFFSET + NUM_DBS))

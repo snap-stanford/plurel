@@ -6,7 +6,7 @@ from plurel.dag import DAG_REGISTRY
 NODE_COUNTS = [10, 20, 50, 100]
 
 
-@pytest.mark.parametrize("seed", list(range(10)))
+@pytest.mark.parametrize("seed", list(range(20)))
 @pytest.mark.parametrize("dag_class", list(DAG_REGISTRY.values()))
 @pytest.mark.parametrize("num_nodes", NODE_COUNTS)
 def test_dag(seed, dag_class, num_nodes):

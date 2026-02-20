@@ -4,7 +4,7 @@ from plurel.config import Choices, Config, DatabaseParams
 from plurel.dataset import SyntheticDataset
 
 
-@pytest.mark.parametrize("seed", list(range(50)))
+@pytest.mark.parametrize("seed", list(range(100)))
 def test_dataset(seed):
     config = Config(
         database_params=DatabaseParams(
@@ -18,7 +18,7 @@ def test_dataset(seed):
     assert db is not None
 
 
-@pytest.mark.parametrize("seed", list(range(10)))
+@pytest.mark.parametrize("seed", list(range(20)))
 def test_dataset_with_sql_file(seed, schema_sql):
     config = Config(
         database_params=DatabaseParams(
