@@ -4,11 +4,11 @@ from plurel.config import Choices, Config, DatabaseParams
 from plurel.dataset import SyntheticDataset
 
 
-@pytest.mark.parametrize("seed", list(range(10)))
+@pytest.mark.parametrize("seed", list(range(50)))
 def test_dataset(seed):
     config = Config(
         database_params=DatabaseParams(
-            num_tables_choices=Choices(kind="range", value=[3, 5]),
+            num_tables_choices=Choices(kind="range", value=[1, 5]),
             num_rows_entity_table_choices=Choices(kind="range", value=[40, 80]),
             num_rows_activity_table_choices=Choices(kind="range", value=[100, 200]),
         )
@@ -22,7 +22,6 @@ def test_dataset(seed):
 def test_dataset_with_sql_file(seed, schema_sql):
     config = Config(
         database_params=DatabaseParams(
-            num_tables_choices=Choices(kind="range", value=[3, 5]),
             num_rows_entity_table_choices=Choices(kind="range", value=[40, 80]),
             num_rows_activity_table_choices=Choices(kind="range", value=[100, 200]),
         ),

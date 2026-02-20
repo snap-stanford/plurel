@@ -49,7 +49,7 @@ class DAG(abc.ABC):
         return graph
 
     def order_edges(self, edges: list):
-        return [(src, dst) for (src, dst) in edges if src < dst]
+        return [(src, dst) if src < dst else (dst, src) for (src, dst) in edges]
 
     def add_edge_weights(self, edges: list):
         return [
@@ -60,6 +60,12 @@ class DAG(abc.ABC):
             )
             for (src, dst) in edges
         ]
+
+    def _isolated_graph(self, num_nodes: int) -> nx.DiGraph:
+        """Return a DiGraph with num_nodes isolated nodes and no edges."""
+        g = nx.DiGraph()
+        g.add_nodes_from(range(num_nodes))
+        return g
 
     @abc.abstractmethod
     def sample(self, **kwargs) -> nx.DiGraph:
@@ -72,6 +78,8 @@ class ErdosRenyi(DAG):
     """
 
     def sample(self, num_nodes: int) -> nx.DiGraph:
+        if num_nodes < 2:
+            return self._isolated_graph(num_nodes)
         p = self.dag_params.er_p_choices.sample_uniform()
         graph = nx.gnp_random_graph(n=num_nodes, p=p, seed=self.seed, directed=True)
         graph = self.ensure_connected(graph.to_undirected())
@@ -116,7 +124,10 @@ class BarabasiAlbert(DAG):
         return graph
 
     def sample(self, num_nodes: int) -> nx.DiGraph:
-        graph = nx.barabasi_albert_graph(n=num_nodes, m=self.dag_params.ba_m, seed=self.seed)
+        if num_nodes < 2:
+            return self._isolated_graph(num_nodes)
+        m = min(self.dag_params.ba_m, num_nodes - 1)
+        graph = nx.barabasi_albert_graph(n=num_nodes, m=m, seed=self.seed)
         graph = self.ensure_connected(graph)
         ordered_edges = self.order_edges(edges=graph.edges())
         weighted_edges = self.add_edge_weights(edges=ordered_edges)
@@ -136,6 +147,8 @@ class RandomTree(DAG):
         return edges
 
     def sample(self, num_nodes: int) -> nx.DiGraph:
+        if num_nodes < 2:
+            return self._isolated_graph(num_nodes)
         graph = nx.random_labeled_tree(num_nodes, seed=self.seed)
         graph = self.ensure_connected(graph)
         root_node = np.random.choice(graph.nodes).item()
@@ -157,9 +170,14 @@ class ReverseRandomTree(RandomTree):
 
 class WattsStrogatz(DAG):
     def sample(self, num_nodes: int) -> nx.DiGraph:
+        if num_nodes < 2:
+            return self._isolated_graph(num_nodes)
+
         p = self.dag_params.ws_rewire_p_choices.sample_uniform()
         k = np.random.choice([2, 4])
         if k > num_nodes:
+            k = num_nodes if num_nodes % 2 == 0 else num_nodes - 1
+        if k < 2:
             k = 2
 
         graph = nx.watts_strogatz_graph(
@@ -204,6 +222,8 @@ class Layered(DAG):
         return sizes
 
     def sample(self, num_nodes: int) -> nx.DiGraph:
+        if num_nodes < 2:
+            return self._isolated_graph(num_nodes)
         p_drop = self.dag_params.layered_edge_dropout_p
         depth = self.dag_params.layered_depth_choices.sample_uniform()
         depth = min(depth, num_nodes)
