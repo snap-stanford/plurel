@@ -111,7 +111,8 @@ class SCM:
 
     def _get_ts_data_gen(self, num_rows: int, table_type: TableType):
         num_points = num_rows
-        min_value, max_value = sorted(np.random.uniform(size=2))
+        scale = self.scm_params.ts_value_scale_choices.sample_uniform()
+        min_value, max_value = sorted(np.random.uniform(size=2) * scale)
         trend_alpha = self.scm_params.ts_trend_alpha_choices.sample_uniform()
         trend_scale = (
             self.scm_params.activity_table_ts_trend_scale_choices.sample_uniform()
@@ -129,6 +130,7 @@ class SCM:
             if table_type == TableType.Activity
             else self.scm_params.entity_table_ts_cycle_scale
         )
+        ar_rho = self.scm_params.ts_ar_rho_choices.sample_uniform()
         return TSDataGenerator(
             num_points=num_points,
             min_value=min_value,
@@ -138,6 +140,7 @@ class SCM:
             cycle_frequency=np.ceil(num_rows * cycle_frequency_perc),
             cycle_scale=cycle_scale,
             noise_scale=noise_scale,
+            ar_rho=ar_rho,
         )
 
     def initialize_ts_data_gens(self, num_rows: int, table_type: TableType):

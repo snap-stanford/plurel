@@ -52,8 +52,10 @@ class TSDataGenerator:
         cycle_frequency: float,
         cycle_scale: float,
         noise_scale: float = 0.05,
+        ar_rho: float = 0.0,
     ):
         assert cycle_frequency <= num_points
+        assert 0.0 <= ar_rho < 1.0
         self.num_points = num_points
         self.min_value = min_value
         self.max_value = max_value
@@ -71,11 +73,12 @@ class TSDataGenerator:
             scale=cycle_scale,
         )
         self.noise_scale = noise_scale
+        self.ar_rho = ar_rho
+        self._noise_state = 0.0
 
     def _get_noise_val(self):
-        noise_val = np.random.randn()
-        noise_val *= self.noise_scale
-        return min(max(noise_val, self.min_value), self.max_value)
+        self._noise_state = self.ar_rho * self._noise_state + np.random.randn() * self.noise_scale
+        return min(max(self._noise_state, self.min_value), self.max_value)
 
     def get_value(self, row_idx):
         trend_val = self.trend.get_value(row_idx=row_idx)
