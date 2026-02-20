@@ -195,6 +195,9 @@ class SCM:
             self.dag.graph.nodes[node]["noise_dist"] = (
                 self.scm_params.node_noise_dist_choices.sample_uniform()
             )
+            self.dag.graph.nodes[node]["propagation_agg"] = (
+                self.scm_params.propagation_agg_choices.sample_uniform()
+            )
             self.dag.graph.nodes[node]["decoder"] = self.get_decoder(
                 _stype=_stype, num_categories=num_categories
             )
@@ -212,6 +215,22 @@ class SCM:
             self.dag.graph.edges[parent_node, child_node]["encoder"] = self.get_encoder(
                 _stype=parent_node_stype, num_categories=parent_node_num_categories
             )
+
+    def _aggregate_embeddings(
+        self, embs: list[torch.Tensor], weights: list[float], mode: str
+    ) -> torch.Tensor:
+        weighted = [w * e for w, e in zip(weights, embs)]
+        stack = torch.stack(weighted, dim=0)  # (n, emb_dim)
+        if mode == "sum":
+            return stack.sum(dim=0)
+        elif mode == "max":
+            return stack.max(dim=0).values
+        elif mode == "product":
+            return stack.prod(dim=0)
+        elif mode == "logexp":
+            return torch.logsumexp(stack, dim=0)
+        else:
+            raise ValueError(f"Unknown aggregation mode: {mode}")
 
     def propagate(self, row_idx: int, foreign_row_idxs: list[int], foreign_scms: list[SCM]):
         foreign_scms_row_embds: list[list] = []
@@ -234,8 +253,9 @@ class SCM:
                         value = torch.Tensor([value])
                     self.dag.graph.nodes[node]["value"] = value
                 else:
-                    parent_nodes = self.dag.graph.predecessors(node)
+                    parent_nodes = list(self.dag.graph.predecessors(node))
                     node_num_categories = self.dag.graph.nodes[node]["num_categories"]
+                    propagation_agg = self.dag.graph.nodes[node]["propagation_agg"]
 
                     # directly add noise
                     noise_dist = self.dag.graph.nodes[node]["noise_dist"]
@@ -243,17 +263,25 @@ class SCM:
                         noise_dist.sample(sample_shape=(self.scm_params.mlp_emb_dim,)).squeeze()
                         / self.scm_params.mlp_emb_dim
                     )
+
+                    all_embs, all_weights = [], []
                     for parent_node in parent_nodes:
                         parent_attrs = self.dag.graph.nodes[parent_node]
                         encoder = self.dag.graph.edges[parent_node, node]["encoder"]
-                        parent_emb = encoder(parent_attrs["value"]).squeeze()
-                        weight = self.dag.graph.get_edge_data(parent_node, node)["weight"]
-                        node_emb += weight * parent_emb
-
+                        all_embs.append(encoder(parent_attrs["value"]).squeeze())
+                        all_weights.append(
+                            self.dag.graph.get_edge_data(parent_node, node)["weight"]
+                        )
                     for foreign_row_embds in foreign_scms_row_embds:
+                        w = 1 / len(foreign_row_embds) if propagation_agg == "sum" else 1.0
                         for foreign_row_embd in foreign_row_embds:
-                            weight = 1 / len(foreign_row_embds)
-                            node_emb += weight * foreign_row_embd
+                            all_embs.append(foreign_row_embd)
+                            all_weights.append(w)
+
+                    if all_embs:
+                        node_emb = node_emb + self._aggregate_embeddings(
+                            all_embs, all_weights, propagation_agg
+                        )
 
                     decoder = self.dag.graph.nodes[node]["decoder"]
                     value = decoder(node_emb)

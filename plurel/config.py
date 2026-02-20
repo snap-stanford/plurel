@@ -176,6 +176,11 @@ class SCMParams:
     ts_ar_rho_choices: Choices = Choices(kind="range", value=[0.0, 0.9])
     ts_value_scale_choices: Choices = Choices(kind="set", value=[0.01, 0.1, 1, 10, 100])
 
+    propagation_agg_choices: Choices = Choices(
+        kind="set",
+        value=["sum", "max", "product", "logexp"],
+    )
+
     mlp_in_dim: int = 1
     mlp_out_dim: int = 1
     mlp_emb_dim: int = 32
