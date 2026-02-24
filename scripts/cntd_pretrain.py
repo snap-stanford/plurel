@@ -18,8 +18,8 @@ if __name__ == "__main__":
             # misc
             project="rt",
             eval_splits=["val", "test"],
-            eval_freq=2000,
-            eval_pow2=False,
+            eval_freq=1000,
+            eval_pow2=True,
             max_eval_steps=80,
             load_ckpt_path=load_ckpt_path,
             save_ckpt_dir=f"~/scratch/ckpts/baselines/cpt/{model_name}/leave_{leave_db}",
