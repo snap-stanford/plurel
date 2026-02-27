@@ -184,6 +184,9 @@ class SCMParams:
     mlp_in_dim: int = 1
     mlp_out_dim: int = 1
     mlp_emb_dim: int = 32
+    propagation_mode_choices: Choices = Choices(kind="set", value=["type_eager", "type_lazy"])
+    cat_label_permute_prob_choices: Choices = Choices(kind="range", value=[0.3, 1.0])
+    cat_label_reverse_prob_choices: Choices = Choices(kind="range", value=[0.2, 0.8])
 
 
 @dataclass(frozen=True)

@@ -45,6 +45,8 @@ class SCM:
         if self.seed:
             set_random_seed(self.seed)
 
+        self.propagation_mode = self.scm_params.propagation_mode_choices.sample_uniform()
+
         self.validate_foreign_scms()
         self.initialize_dag()
         self.initialize_nodes_and_edges()
@@ -147,7 +149,7 @@ class SCM:
         self.source_node_to_ts_data_gen = {}
         for node in self.source_nodes:
             _stype = self.dag.graph.nodes[node]["_stype"]
-            if _stype == stype.numerical:
+            if self.propagation_mode == "type_lazy" or _stype == stype.numerical:
                 self.source_node_to_ts_data_gen[node] = self._get_ts_data_gen(
                     num_rows=num_rows, table_type=table_type
                 )
@@ -198,23 +200,36 @@ class SCM:
             self.dag.graph.nodes[node]["propagation_agg"] = (
                 self.scm_params.propagation_agg_choices.sample_uniform()
             )
-            self.dag.graph.nodes[node]["decoder"] = self.get_decoder(
-                _stype=_stype, num_categories=num_categories
-            )
+            if self.propagation_mode == "type_lazy":
+                self.dag.graph.nodes[node]["decoder"] = self._get_numerical_decoder()
+            else:
+                self.dag.graph.nodes[node]["decoder"] = self.get_decoder(
+                    _stype=_stype, num_categories=num_categories
+                )
             if node in self.col_nodes:
                 self.dag.graph.nodes[node]["collation_encoders"] = {}
                 for child_table_name in self.child_table_names:
+                    if self.propagation_mode == "type_lazy":
+                        encoder = self._get_numerical_encoder()
+                    else:
+                        encoder = self.get_encoder(_stype=_stype, num_categories=num_categories)
                     self.dag.graph.nodes[node]["collation_encoders"][
                         (self.table_name, child_table_name)
-                    ] = self.get_encoder(_stype=_stype, num_categories=num_categories)
+                    ] = encoder
 
     def _reset_edge_attributes(self):
         for parent_node, child_node in self.dag.graph.edges:
-            parent_node_stype = self.dag.graph.nodes[parent_node]["_stype"]
-            parent_node_num_categories = self.dag.graph.nodes[parent_node]["num_categories"]
-            self.dag.graph.edges[parent_node, child_node]["encoder"] = self.get_encoder(
-                _stype=parent_node_stype, num_categories=parent_node_num_categories
-            )
+            if self.propagation_mode == "type_lazy":
+                self.dag.graph.edges[parent_node, child_node]["encoder"] = (
+                    self._get_numerical_encoder()
+                )
+            else:
+                parent_node_stype = self.dag.graph.nodes[parent_node]["_stype"]
+                parent_node_num_categories = self.dag.graph.nodes[parent_node]["num_categories"]
+                self.dag.graph.edges[parent_node, child_node]["encoder"] = self.get_encoder(
+                    _stype=parent_node_stype,
+                    num_categories=parent_node_num_categories,
+                )
 
     def _aggregate_embeddings(
         self, embs: list[torch.Tensor], weights: list[float], mode: str
@@ -247,7 +262,9 @@ class SCM:
                 node_stype = self.dag.graph.nodes[node]["_stype"]
                 if node in self.source_nodes:
                     value = self.source_node_to_ts_data_gen[node].get_value(row_idx=row_idx)
-                    if node_stype == stype.categorical:
+                    if self.propagation_mode == "type_lazy":
+                        value = torch.Tensor([value])
+                    elif node_stype == stype.categorical:
                         value = torch.LongTensor([value])
                     else:
                         value = torch.Tensor([value])
@@ -335,6 +352,29 @@ class SCM:
             )
             self.bi_fk_pk_graph_map[foreign_table_name] = bi_g
 
+    def _apply_categorical_quantization(self):
+        for node in self.col_nodes:
+            if self.dag.graph.nodes[node]["_stype"] != stype.categorical:
+                continue
+            col_name = self.dag.graph.nodes[node]["col_name"]
+            num_categories = self.dag.graph.nodes[node]["num_categories"]
+            col_values = torch.tensor(self.df[col_name].values, dtype=torch.float32)
+            # Sample random boundaries from the data itself
+            boundary_indices = torch.randint(0, len(col_values), (num_categories - 1,))
+            boundaries = col_values[boundary_indices]
+            # Count how many boundaries each value exceeds → class label in [0, num_categories-1]
+            classes = (col_values.unsqueeze(-1) > boundaries.unsqueeze(0)).sum(dim=1)
+            # randomly permute class labels to break ordinality
+            permute_prob = self.scm_params.cat_label_permute_prob_choices.sample_uniform()
+            if np.random.random() < permute_prob:
+                perm = torch.randperm(num_categories)
+                classes = perm[classes]
+            # randomly reverse class labels
+            reverse_prob = self.scm_params.cat_label_reverse_prob_choices.sample_uniform()
+            if np.random.random() < reverse_prob:
+                classes = num_categories - 1 - classes
+            self.df[col_name] = classes.numpy()
+
     def generate_df(
         self,
         num_rows: int,
@@ -351,6 +391,8 @@ class SCM:
                 for row_idx in tqdm(range(self.num_rows), desc="generating rows", leave=False)
             ]
         )
+        if self.propagation_mode == "type_lazy":
+            self._apply_categorical_quantization()
         if min_timestamp and max_timestamp:
             self.df["date"] = pd.date_range(
                 start=min_timestamp, end=max_timestamp, periods=num_rows
@@ -376,7 +418,9 @@ class SCM:
             if col_name not in col_to_stype:
                 continue
             _stype = col_to_stype[col_name]
-            if _stype == stype.numerical:
+            if self.propagation_mode == "type_lazy":
+                value_tensor = torch.Tensor([value])
+            elif _stype == stype.numerical:
                 value_tensor = torch.Tensor([value])
             elif _stype == stype.categorical:
                 value_tensor = torch.LongTensor([value])
