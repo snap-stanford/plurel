@@ -8,6 +8,14 @@ from plurel.schema import RandomSchemaGraphBuilder, SQLSchemaGraphBuilder
 from plurel.scm import SCM
 from plurel.utils import TableType, set_random_seed
 
+COLUMN_TRANSFORM_REGISTRY: dict[str, callable] = {
+    "identity": lambda x: x,
+    "rank_uniform": lambda x: (np.argsort(np.argsort(x)) + 1) / (len(x) + 1),
+    "log": lambda x: np.sign(x) * np.log1p(np.abs(x)),
+    "sqrt": lambda x: np.sign(x) * np.sqrt(np.abs(x)),
+    "standardize": lambda x: (x - x.mean()) / max(x.std(), 1e-8),
+}
+
 
 class SyntheticDataset(Dataset):
     """
@@ -99,12 +107,22 @@ class SyntheticDataset(Dataset):
     def get_num_rows(self, table_type):
         if table_type == TableType.Entity:
             num_rows = self.config.database_params.num_rows_entity_table_choices.sample_uniform()
-        if table_type == TableType.Activity:
+        elif table_type == TableType.Activity:
             num_rows = self.config.database_params.num_rows_activity_table_choices.sample_uniform()
         return num_rows
 
+    def apply_col_transforms(self, df, pkey_col, fkey_cols):
+        for col_name, _type in df.dtypes.items():
+            if col_name not in [pkey_col, *fkey_cols, "date"] and _type in [float]:
+                col_transform_name = (
+                    self.config.database_params.col_transform_choices.sample_uniform()
+                )
+                col_transform = COLUMN_TRANSFORM_REGISTRY[col_transform_name]
+                df[col_name] = col_transform(df[col_name].values).astype(float)
+        return df
+
     def implant_nan(self, df, pkey_col, fkey_cols):
-        nan_perc = self.config.database_params.column_nan_perc.sample_uniform()
+        nan_perc = self.config.database_params.column_nan_perc_choices.sample_uniform()
         num_nan_cells = int(np.floor(nan_perc * len(df)))
         for col_name, _type in df.dtypes.items():
             if col_name not in [pkey_col, *fkey_cols] and _type in [float]:
@@ -205,6 +223,9 @@ class SyntheticDataset(Dataset):
                 if col != pkey_col and col not in fkey_col_to_pkey_table.keys()
             }
             ########## post-processing ###############
+            df = self.apply_col_transforms(
+                df=df, pkey_col=pkey_col, fkey_cols=list(fkey_col_to_pkey_table.keys())
+            )
             df = self.implant_nan(
                 df=df, pkey_col=pkey_col, fkey_cols=list(fkey_col_to_pkey_table.keys())
             )

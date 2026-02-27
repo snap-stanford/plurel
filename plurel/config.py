@@ -1,3 +1,4 @@
+import math
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
@@ -5,7 +6,6 @@ import numpy as np
 import pandas as pd
 import torch
 import torch.nn.functional as F
-from torch.distributions import Beta
 from torch_frame import stype
 
 
@@ -67,6 +67,17 @@ class Choices:
             raise ValueError("'set' kind not supported for power-law sampling")
 
 
+class RandomFunctionActivation:
+    """Composite sine-wave activation: re-randomized on every call."""
+
+    def __call__(self, x: torch.Tensor) -> torch.Tensor:
+        n = np.random.randint(3, 8)
+        amplitudes = torch.randn(n)
+        freqs = torch.exp(torch.FloatTensor(n).uniform_(math.log(0.1), math.log(10.0)))
+        phases = torch.FloatTensor(n).uniform_(0, 2 * math.pi)
+        return (amplitudes * torch.sin(freqs * x.unsqueeze(-1) + phases)).sum(dim=-1)
+
+
 @dataclass(frozen=True)
 class DatabaseParams:
     """Parameters controlling database structure and table generation."""
@@ -81,7 +92,11 @@ class DatabaseParams:
     num_cols_choices: Choices = Choices(kind="range", value=[3, 40])
     min_timestamp: pd.Timestamp = pd.Timestamp("1990-01-01")
     max_timestamp: pd.Timestamp = pd.Timestamp("2025-01-01")
-    column_nan_perc: float = Choices(kind="range", value=[0.01, 0.1])
+    column_nan_perc_choices: Choices = Choices(kind="range", value=[0.01, 0.1])
+    col_transform_choices: Choices = Choices(
+        kind="set",
+        value=["identity", "rank_uniform", "log", "sqrt", "standardize"],
+    )
 
 
 @dataclass(frozen=True)
@@ -96,6 +111,8 @@ class SCMParams:
             "RandomTree",
             "ReverseRandomTree",
             "Layered",
+            "WattsStrogatz",
+            "RandomCauchy",
         ],
     )
     scm_col_node_perc_choices: Choices = Choices(kind="range", value=[0.3, 0.9])
@@ -137,27 +154,17 @@ class SCMParams:
             F.hardshrink,
             lambda x: x,
             lambda x: x.abs(),
-            lambda x: x**2,
-            lambda x: x**3,
             torch.sin,
             torch.cos,
             torch.sign,
             lambda x: x.clamp(-1, 1),
             lambda x: torch.log1p(x.abs()) * x.sign(),
             lambda x: (torch.sqrt(x**2 + 1) - 1) / 2 + x,
-            lambda x: torch.exp(-(x**2)),
+            RandomFunctionActivation(),
         ],
     )
-    node_noise_dist_choices: Choices = Choices(
-        kind="set",
-        value=[
-            Beta(torch.tensor([0.5]), torch.tensor([0.5])),
-            Beta(torch.tensor([2.0]), torch.tensor([2.0])),
-            Beta(torch.tensor([2.0]), torch.tensor([3.0])),
-            Beta(torch.tensor([2.0]), torch.tensor([4.0])),
-            Beta(torch.tensor([4.0]), torch.tensor([1.0])),
-        ],
-    )
+    node_noise_alpha_choices: Choices = Choices(kind="range", value=[0.5, 5.0])
+    node_noise_beta_choices: Choices = Choices(kind="range", value=[0.5, 5.0])
 
     bi_hsbm_levels_choices: Choices = Choices(kind="range", value=[1, 5])
     bi_hsbm_clusters_per_level_choices: Choices = Choices(kind="range", value=[1, 3])
@@ -184,6 +191,16 @@ class SCMParams:
     mlp_in_dim: int = 1
     mlp_out_dim: int = 1
     mlp_emb_dim: int = 32
+    mlp_num_layers_choices: Choices = Choices(kind="range", value=[2, 4])
+    mlp_weight_density_choices: Choices = Choices(kind="range", value=[0.3, 1.0])
+    source_gen_type_choices: Choices = Choices(
+        kind="set", value=["ts", "uniform", "gaussian", "beta", "mixed"]
+    )
+    source_beta_alpha_choices: Choices = Choices(kind="range", value=[0.5, 5.0])
+    source_beta_beta_choices: Choices = Choices(kind="range", value=[0.5, 5.0])
+    propagation_mode_choices: Choices = Choices(kind="set", value=["type_eager", "type_lazy"])
+    cat_label_permute_prob_choices: Choices = Choices(kind="range", value=[0.3, 1.0])
+    cat_label_reverse_prob_choices: Choices = Choices(kind="range", value=[0.2, 0.8])
 
 
 @dataclass(frozen=True)
@@ -198,6 +215,9 @@ class DAGParams:
     ws_rewire_p_choices: Choices = Choices(kind="range", value=[0.1, 0.3])
     layered_depth_choices: Choices = Choices(kind="range", value=[2, 8])
     layered_edge_dropout_p: float = 0.1
+    edge_weight_dist_choices: Choices = Choices(
+        kind="set", value=["gaussian", "lognormal", "cauchy", "uniform"]
+    )
 
 
 @dataclass(frozen=True)
