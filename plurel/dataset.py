@@ -104,7 +104,7 @@ class SyntheticDataset(Dataset):
         return num_rows
 
     def implant_nan(self, df, pkey_col, fkey_cols):
-        nan_perc = self.config.database_params.column_nan_perc.sample_uniform()
+        nan_perc = self.config.database_params.column_nan_perc_choices.sample_uniform()
         num_nan_cells = int(np.floor(nan_perc * len(df)))
         for col_name, _type in df.dtypes.items():
             if col_name not in [pkey_col, *fkey_cols] and _type in [float]:

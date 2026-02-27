@@ -92,7 +92,7 @@ class DatabaseParams:
     num_cols_choices: Choices = Choices(kind="range", value=[3, 40])
     min_timestamp: pd.Timestamp = pd.Timestamp("1990-01-01")
     max_timestamp: pd.Timestamp = pd.Timestamp("2025-01-01")
-    column_nan_perc: float = Choices(kind="range", value=[0.01, 0.1])
+    column_nan_perc_choices: Choices = Choices(kind="range", value=[0.01, 0.1])
 
 
 @dataclass(frozen=True)
@@ -107,6 +107,8 @@ class SCMParams:
             "RandomTree",
             "ReverseRandomTree",
             "Layered",
+            "WattsStrogatz",
+            "RandomCauchy",
         ],
     )
     scm_col_node_perc_choices: Choices = Choices(kind="range", value=[0.3, 0.9])
@@ -212,6 +214,9 @@ class DAGParams:
     ws_rewire_p_choices: Choices = Choices(kind="range", value=[0.1, 0.3])
     layered_depth_choices: Choices = Choices(kind="range", value=[2, 8])
     layered_edge_dropout_p: float = 0.1
+    edge_weight_dist_choices: Choices = Choices(
+        kind="set", value=["gaussian", "lognormal", "cauchy", "uniform"]
+    )
 
 
 @dataclass(frozen=True)

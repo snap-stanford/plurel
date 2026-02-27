@@ -10,6 +10,13 @@ import numpy as np
 from plurel.config import DAGParams
 from plurel.utils import set_random_seed
 
+EDGE_WEIGHT_SAMPLERS: dict[str, callable] = {
+    "gaussian": np.random.randn,
+    "lognormal": np.random.lognormal,
+    "cauchy": np.random.standard_cauchy,
+    "uniform": lambda: np.random.uniform(-2.0, 2.0),
+}
+
 
 class DAG(abc.ABC):
     """
@@ -52,14 +59,9 @@ class DAG(abc.ABC):
         return [(src, dst) if src < dst else (dst, src) for (src, dst) in edges]
 
     def add_edge_weights(self, edges: list):
-        return [
-            (
-                src,
-                dst,
-                {"weight": np.random.randn()},
-            )
-            for (src, dst) in edges
-        ]
+        dist = self.dag_params.edge_weight_dist_choices.sample_uniform()
+        sampler = EDGE_WEIGHT_SAMPLERS[dist]
+        return [(src, dst, {"weight": float(sampler())}) for (src, dst) in edges]
 
     def _isolated_graph(self, num_nodes: int) -> nx.DiGraph:
         """Return a DiGraph with num_nodes isolated nodes and no edges."""
