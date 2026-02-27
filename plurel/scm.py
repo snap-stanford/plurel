@@ -8,6 +8,7 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 import torch
+from torch.distributions import Beta
 from torch_frame import stype
 from tqdm import tqdm
 
@@ -15,8 +16,138 @@ from plurel.bipartite import get_bipartite_hsbm
 from plurel.config import DAGParams, SCMParams
 from plurel.dag import DAG_REGISTRY
 from plurel.transforms import MLP, CategoricalDecoder, CategoricalEncoder
-from plurel.ts import CategoricalTSDataGenerator, TSDataGenerator
+from plurel.ts import (
+    BetaSourceGenerator,
+    CategoricalTSDataGenerator,
+    GaussianSourceGenerator,
+    IIDCategoricalGenerator,
+    MixedSourceGenerator,
+    TSDataGenerator,
+    UniformSourceGenerator,
+)
 from plurel.utils import TableType, set_random_seed
+
+
+class SourceGenFactory:
+    """Base class for source data generator factories."""
+
+    def make_numerical(self, scm_params: SCMParams, num_rows: int, table_type: TableType):
+        raise NotImplementedError
+
+    def make_categorical(
+        self,
+        scm_params: SCMParams,
+        num_categories: int,
+        num_rows: int,
+        table_type: TableType,
+    ):
+        raise NotImplementedError
+
+
+class TSSourceGenFactory(SourceGenFactory):
+    def make_numerical(self, scm_params, num_rows, table_type):
+        scale = float(scm_params.ts_value_scale_choices.sample_uniform())
+        min_value, max_value = sorted(np.random.uniform(size=2) * scale)
+        trend_scale = (
+            scm_params.activity_table_ts_trend_scale_choices.sample_uniform()
+            if table_type == TableType.Activity
+            else scm_params.entity_table_ts_trend_scale
+        )
+        noise_scale = (
+            scm_params.activity_table_ts_noise_scale
+            if table_type == TableType.Activity
+            else scm_params.entity_table_ts_noise_scale
+        )
+        cycle_scale = (
+            scm_params.activity_table_ts_cycle_scale_choices.sample_uniform()
+            if table_type == TableType.Activity
+            else scm_params.entity_table_ts_cycle_scale
+        )
+        return TSDataGenerator(
+            num_points=num_rows,
+            min_value=min_value,
+            max_value=max_value,
+            trend_alpha=scm_params.ts_trend_alpha_choices.sample_uniform(),
+            trend_scale=trend_scale,
+            cycle_frequency=np.ceil(
+                num_rows * scm_params.ts_cycle_freq_perc_choices.sample_uniform()
+            ),
+            cycle_scale=cycle_scale,
+            noise_scale=noise_scale,
+            ar_rho=scm_params.ts_ar_rho_choices.sample_uniform(),
+        )
+
+    def make_categorical(self, scm_params, num_categories, num_rows, table_type):
+        return CategoricalTSDataGenerator(
+            [
+                self.make_numerical(scm_params=scm_params, num_rows=num_rows, table_type=table_type)
+                for _ in range(num_categories)
+            ]
+        )
+
+
+class UniformSourceGenFactory(SourceGenFactory):
+    def make_numerical(self, scm_params, num_rows, table_type):
+        scale = float(scm_params.ts_value_scale_choices.sample_uniform())
+        low, high = sorted(np.random.uniform(size=2) * scale)
+        return UniformSourceGenerator(low=low, high=high)
+
+    def make_categorical(self, scm_params, num_categories, num_rows, table_type):
+        return IIDCategoricalGenerator(num_categories=num_categories)
+
+
+class GaussianSourceGenFactory(SourceGenFactory):
+    def make_numerical(self, scm_params, num_rows, table_type):
+        scale = float(scm_params.ts_value_scale_choices.sample_uniform())
+        low, high = sorted(np.random.uniform(size=2) * scale)
+        return GaussianSourceGenerator(
+            mean=(low + high) / 2,
+            std=max((high - low) / 4, 1e-6),
+            low=low,
+            high=high,
+        )
+
+    def make_categorical(self, scm_params, num_categories, num_rows, table_type):
+        return IIDCategoricalGenerator(num_categories=num_categories)
+
+
+class BetaSourceGenFactory(SourceGenFactory):
+    def make_numerical(self, scm_params, num_rows, table_type):
+        scale = float(scm_params.ts_value_scale_choices.sample_uniform())
+        low, high = sorted(np.random.uniform(size=2) * scale)
+        alpha = float(scm_params.source_beta_alpha_choices.sample_uniform())
+        beta = float(scm_params.source_beta_beta_choices.sample_uniform())
+        return BetaSourceGenerator(alpha=alpha, beta=beta, scale=high - low, offset=low)
+
+    def make_categorical(self, scm_params, num_categories, num_rows, table_type):
+        return IIDCategoricalGenerator(num_categories=num_categories)
+
+
+class MixedSourceGenFactory(SourceGenFactory):
+    _sub_types = ["uniform", "gaussian", "beta"]
+
+    def make_numerical(self, scm_params, num_rows, table_type):
+        sub_types = np.random.choice(self._sub_types, size=np.random.randint(2, 4))
+        return MixedSourceGenerator(
+            [
+                SOURCE_GEN_REGISTRY[t].make_numerical(
+                    scm_params=scm_params, num_rows=num_rows, table_type=table_type
+                )
+                for t in sub_types
+            ]
+        )
+
+    def make_categorical(self, scm_params, num_categories, num_rows, table_type):
+        return IIDCategoricalGenerator(num_categories=num_categories)
+
+
+SOURCE_GEN_REGISTRY: dict[str, SourceGenFactory] = {
+    "ts": TSSourceGenFactory(),
+    "uniform": UniformSourceGenFactory(),
+    "gaussian": GaussianSourceGenFactory(),
+    "beta": BetaSourceGenFactory(),
+    "mixed": MixedSourceGenFactory(),
+}
 
 
 class PropagationStrategy:
@@ -28,20 +159,21 @@ class PropagationStrategy:
 
     def __init__(self, scm_params: SCMParams):
         self.scm_params = scm_params
+        self.mlp_emb_dim = int(scm_params.mlp_emb_dim_choices.sample_uniform())
 
     def _get_numerical_encoder(self):
         return MLP(
             scm_params=self.scm_params,
             in_dim=self.scm_params.mlp_in_dim,
-            hid_dim=self.scm_params.mlp_emb_dim,
-            out_dim=self.scm_params.mlp_emb_dim,
+            hid_dim=self.mlp_emb_dim,
+            out_dim=self.mlp_emb_dim,
         )
 
     def _get_numerical_decoder(self):
         return MLP(
             scm_params=self.scm_params,
-            in_dim=self.scm_params.mlp_emb_dim,
-            hid_dim=self.scm_params.mlp_emb_dim,
+            in_dim=self.mlp_emb_dim,
+            hid_dim=self.mlp_emb_dim,
             out_dim=self.scm_params.mlp_out_dim,
         )
 
@@ -49,14 +181,14 @@ class PropagationStrategy:
         return CategoricalEncoder(
             scm_params=self.scm_params,
             num_embeddings=num_categories,
-            embedding_dim=self.scm_params.mlp_emb_dim,
+            embedding_dim=self.mlp_emb_dim,
         )
 
     def _get_categorical_decoder(self, num_categories: int):
         return CategoricalDecoder(
             scm_params=self.scm_params,
             num_embeddings=num_categories,
-            embedding_dim=self.scm_params.mlp_emb_dim,
+            embedding_dim=self.mlp_emb_dim,
         )
 
     def get_encoder(self, _stype: stype, num_categories: int | None = None):
@@ -71,37 +203,20 @@ class PropagationStrategy:
             stype.categorical: lambda: self._get_categorical_decoder(num_categories=num_categories),
         }[_stype]()
 
-    def _get_ts_data_gen(self, num_rows: int, table_type: TableType):
-        scale = self.scm_params.ts_value_scale_choices.sample_uniform()
-        min_value, max_value = sorted(np.random.uniform(size=2) * scale)
-        trend_scale = (
-            self.scm_params.activity_table_ts_trend_scale_choices.sample_uniform()
-            if table_type == TableType.Activity
-            else self.scm_params.entity_table_ts_trend_scale
-        )
-        noise_scale = (
-            self.scm_params.activity_table_ts_noise_scale
-            if table_type == TableType.Activity
-            else self.scm_params.entity_table_ts_noise_scale
-        )
-        cycle_scale = (
-            self.scm_params.activity_table_ts_cycle_scale_choices.sample_uniform()
-            if table_type == TableType.Activity
-            else self.scm_params.entity_table_ts_cycle_scale
-        )
-        return TSDataGenerator(
-            num_points=num_rows,
-            min_value=min_value,
-            max_value=max_value,
-            trend_alpha=self.scm_params.ts_trend_alpha_choices.sample_uniform(),
-            trend_scale=trend_scale,
-            cycle_frequency=np.ceil(
-                num_rows * self.scm_params.ts_cycle_freq_perc_choices.sample_uniform()
+    def _get_source_data_gen(self, node_stype, num_categories, num_rows, table_type):
+        source_gen_type = self.scm_params.source_gen_type_choices.sample_uniform()
+        source_gen_factory = SOURCE_GEN_REGISTRY[source_gen_type]
+        return {
+            stype.numerical: lambda: source_gen_factory.make_numerical(
+                scm_params=self.scm_params, num_rows=num_rows, table_type=table_type
             ),
-            cycle_scale=cycle_scale,
-            noise_scale=noise_scale,
-            ar_rho=self.scm_params.ts_ar_rho_choices.sample_uniform(),
-        )
+            stype.categorical: lambda: source_gen_factory.make_categorical(
+                scm_params=self.scm_params,
+                num_categories=num_categories,
+                num_rows=num_rows,
+                table_type=table_type,
+            ),
+        }[node_stype]()
 
     def make_ts_data_gen(self, node_stype, num_categories, num_rows, table_type):
         raise NotImplementedError
@@ -130,14 +245,7 @@ class EagerPropagationStrategy(PropagationStrategy):
     """Type-aware strategy: uses type-specific encoders/decoders throughout."""
 
     def make_ts_data_gen(self, node_stype, num_categories, num_rows, table_type):
-        if node_stype == stype.categorical:
-            return CategoricalTSDataGenerator(
-                ts_data_gens=[
-                    self._get_ts_data_gen(num_rows=num_rows, table_type=table_type)
-                    for _ in range(num_categories)
-                ]
-            )
-        return self._get_ts_data_gen(num_rows=num_rows, table_type=table_type)
+        return self._get_source_data_gen(node_stype, num_categories, num_rows, table_type)
 
     def make_node_encoder(self, _stype, num_categories):
         return self.get_encoder(_stype=_stype, num_categories=num_categories)
@@ -163,7 +271,10 @@ class LazyPropagationStrategy(PropagationStrategy):
     """Lazy strategy: treats all values as numerical; quantizes categoricals post-hoc."""
 
     def make_ts_data_gen(self, node_stype, num_categories, num_rows, table_type):
-        return self._get_ts_data_gen(num_rows=num_rows, table_type=table_type)
+        source_gen_type = self.scm_params.source_gen_type_choices.sample_uniform()
+        return SOURCE_GEN_REGISTRY[source_gen_type].make_numerical(
+            scm_params=self.scm_params, num_rows=num_rows, table_type=table_type
+        )
 
     def make_node_encoder(self, _stype, num_categories):
         return self.get_encoder(_stype=stype.numerical)
@@ -295,8 +406,10 @@ class SCM:
                 )
                 self.dag.graph.nodes[node]["num_categories"] = num_categories
 
-            self.dag.graph.nodes[node]["noise_dist"] = (
-                self.scm_params.node_noise_dist_choices.sample_uniform()
+            alpha = float(self.scm_params.node_noise_alpha_choices.sample_uniform())
+            beta = float(self.scm_params.node_noise_beta_choices.sample_uniform())
+            self.dag.graph.nodes[node]["noise_dist"] = Beta(
+                torch.tensor([alpha]), torch.tensor([beta])
             )
             self.dag.graph.nodes[node]["propagation_agg"] = (
                 self.scm_params.propagation_agg_choices.sample_uniform()
@@ -356,8 +469,8 @@ class SCM:
                     # directly add noise
                     noise_dist = self.dag.graph.nodes[node]["noise_dist"]
                     node_emb = (
-                        noise_dist.sample(sample_shape=(self.scm_params.mlp_emb_dim,)).squeeze()
-                        / self.scm_params.mlp_emb_dim
+                        noise_dist.sample(sample_shape=(self.strategy.mlp_emb_dim,)).squeeze()
+                        / self.strategy.mlp_emb_dim
                     )
 
                     all_embs, all_weights = [], []

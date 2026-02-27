@@ -1,3 +1,6 @@
+import math
+
+import numpy as np
 import torch
 
 from plurel.config import SCMParams
@@ -10,8 +13,8 @@ class MLP:
         in_dim: int,
         hid_dim: int,
         out_dim: int,
-        num_layers: int = 2,
     ):
+        num_layers = int(scm_params.mlp_num_layers_choices.sample_uniform())
         assert num_layers >= 1
         self.scm_params = scm_params
         dims = [in_dim] + [hid_dim] * (num_layers - 1) + [out_dim]
@@ -19,11 +22,16 @@ class MLP:
         for W in self.weights:
             init_fn = scm_params.initialization_choices.sample_uniform()
             init_fn(W)
+            # Bernoulli sparsity mask with variance compensation; density=1.0 => identity
+            density = float(scm_params.mlp_weight_density_choices.sample_uniform())
+            mask = torch.bernoulli(torch.full_like(W, density))
+            W.data *= mask / max(density, 1e-6)
 
     def __call__(self, x):
         for W in self.weights[:-1]:
             act_fn = self.scm_params.activation_choices.sample_uniform()
-            x = act_fn(x @ W)
+            log_scale = np.random.uniform(-1.0, 1.0)
+            x = math.exp(log_scale) * act_fn(x @ W)
         return x @ self.weights[-1]
 
 
@@ -33,7 +41,6 @@ class CategoricalEncoder:
         scm_params: SCMParams,
         num_embeddings: int,
         embedding_dim: int,
-        num_layers: int = 2,
     ):
         self.E = torch.nn.Embedding(
             num_embeddings=num_embeddings, embedding_dim=embedding_dim, _freeze=True
@@ -45,7 +52,6 @@ class CategoricalEncoder:
             in_dim=embedding_dim,
             hid_dim=embedding_dim,
             out_dim=embedding_dim,
-            num_layers=num_layers,
         )
 
     def __call__(self, x: torch.LongTensor):
@@ -58,7 +64,6 @@ class CategoricalDecoder:
         scm_params: SCMParams,
         num_embeddings: int,
         embedding_dim: int,
-        num_layers: int = 2,
     ):
         self.E = torch.nn.Embedding(
             num_embeddings=num_embeddings, embedding_dim=embedding_dim, _freeze=True
@@ -70,7 +75,6 @@ class CategoricalDecoder:
             in_dim=embedding_dim,
             hid_dim=embedding_dim,
             out_dim=embedding_dim,
-            num_layers=num_layers,
         )
 
     def __call__(self, x: torch.Tensor):

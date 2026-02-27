@@ -98,3 +98,52 @@ class CategoricalTSDataGenerator:
         probs = exp_vals / exp_vals.sum()
         category_idx = np.random.choice(len(vals), p=probs)
         return int(category_idx)
+
+
+class UniformSourceGenerator:
+    def __init__(self, low: float, high: float):
+        self.low = low
+        self.high = high
+
+    def get_value(self, row_idx: int) -> float:
+        return float(np.random.uniform(self.low, self.high))
+
+
+class GaussianSourceGenerator:
+    def __init__(self, mean: float, std: float, low: float, high: float):
+        self.mean = mean
+        self.std = std
+        self.low = low
+        self.high = high
+
+    def get_value(self, row_idx: int) -> float:
+        return float(np.clip(np.random.normal(self.mean, self.std), self.low, self.high))
+
+
+class BetaSourceGenerator:
+    def __init__(self, alpha: float, beta: float, scale: float, offset: float):
+        self.alpha = alpha
+        self.beta = beta
+        self.scale = scale
+        self.offset = offset
+
+    def get_value(self, row_idx: int) -> float:
+        return float(np.random.beta(self.alpha, self.beta) * self.scale + self.offset)
+
+
+class MixedSourceGenerator:
+    def __init__(self, generators: list):
+        self.generators = generators
+
+    def get_value(self, row_idx: int) -> float:
+        gen = self.generators[np.random.randint(len(self.generators))]
+        return gen.get_value(row_idx)
+
+
+class IIDCategoricalGenerator:
+    def __init__(self, num_categories: int):
+        self.probs = np.random.dirichlet(np.ones(num_categories))
+        self.num_categories = num_categories
+
+    def get_value(self, row_idx: int) -> int:
+        return int(np.random.choice(self.num_categories, p=self.probs))

@@ -1,3 +1,4 @@
+import math
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
@@ -5,7 +6,6 @@ import numpy as np
 import pandas as pd
 import torch
 import torch.nn.functional as F
-from torch.distributions import Beta
 from torch_frame import stype
 
 
@@ -65,6 +65,17 @@ class Choices:
                 )
         elif self.kind == "set":
             raise ValueError("'set' kind not supported for power-law sampling")
+
+
+class RandomFunctionActivation:
+    """Composite sine-wave activation: re-randomized on every call."""
+
+    def __call__(self, x: torch.Tensor) -> torch.Tensor:
+        n = np.random.randint(3, 8)
+        amplitudes = torch.randn(n)
+        freqs = torch.exp(torch.FloatTensor(n).uniform_(math.log(0.1), math.log(10.0)))
+        phases = torch.FloatTensor(n).uniform_(0, 2 * math.pi)
+        return (amplitudes * torch.sin(freqs * x.unsqueeze(-1) + phases)).sum(dim=-1)
 
 
 @dataclass(frozen=True)
@@ -146,18 +157,11 @@ class SCMParams:
             lambda x: torch.log1p(x.abs()) * x.sign(),
             lambda x: (torch.sqrt(x**2 + 1) - 1) / 2 + x,
             lambda x: torch.exp(-(x**2)),
+            RandomFunctionActivation(),
         ],
     )
-    node_noise_dist_choices: Choices = Choices(
-        kind="set",
-        value=[
-            Beta(torch.tensor([0.5]), torch.tensor([0.5])),
-            Beta(torch.tensor([2.0]), torch.tensor([2.0])),
-            Beta(torch.tensor([2.0]), torch.tensor([3.0])),
-            Beta(torch.tensor([2.0]), torch.tensor([4.0])),
-            Beta(torch.tensor([4.0]), torch.tensor([1.0])),
-        ],
-    )
+    node_noise_alpha_choices: Choices = Choices(kind="range", value=[0.5, 5.0])
+    node_noise_beta_choices: Choices = Choices(kind="range", value=[0.5, 5.0])
 
     bi_hsbm_levels_choices: Choices = Choices(kind="range", value=[1, 5])
     bi_hsbm_clusters_per_level_choices: Choices = Choices(kind="range", value=[1, 3])
@@ -183,7 +187,14 @@ class SCMParams:
 
     mlp_in_dim: int = 1
     mlp_out_dim: int = 1
-    mlp_emb_dim: int = 32
+    mlp_emb_dim_choices: Choices = Choices(kind="set", value=[16, 32, 64, 128])
+    mlp_num_layers_choices: Choices = Choices(kind="range", value=[2, 4])
+    mlp_weight_density_choices: Choices = Choices(kind="range", value=[0.3, 1.0])
+    source_gen_type_choices: Choices = Choices(
+        kind="set", value=["ts", "uniform", "gaussian", "beta", "mixed"]
+    )
+    source_beta_alpha_choices: Choices = Choices(kind="range", value=[0.5, 5.0])
+    source_beta_beta_choices: Choices = Choices(kind="range", value=[0.5, 5.0])
     propagation_mode_choices: Choices = Choices(kind="set", value=["type_eager", "type_lazy"])
     cat_label_permute_prob_choices: Choices = Choices(kind="range", value=[0.3, 1.0])
     cat_label_reverse_prob_choices: Choices = Choices(kind="range", value=[0.2, 0.8])
