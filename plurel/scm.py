@@ -159,7 +159,7 @@ class PropagationStrategy:
 
     def __init__(self, scm_params: SCMParams):
         self.scm_params = scm_params
-        self.mlp_emb_dim = int(scm_params.mlp_emb_dim_choices.sample_uniform())
+        self.mlp_emb_dim = scm_params.mlp_emb_dim
 
     def _get_numerical_encoder(self):
         return MLP(
@@ -440,7 +440,7 @@ class SCM:
         self, embs: list[torch.Tensor], weights: list[float], mode: str
     ) -> torch.Tensor:
         weighted = [w * e for w, e in zip(weights, embs)]
-        stack = torch.stack(weighted, dim=0)  # (n, emb_dim)
+        stack = torch.clamp(torch.stack(weighted, dim=0), -1e4, 1e4)  # (n, emb_dim)
         if mode not in AGGREGATION_REGISTRY:
             raise ValueError(f"Unknown aggregation mode: {mode}")
         return AGGREGATION_REGISTRY[mode](stack)

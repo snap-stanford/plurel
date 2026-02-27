@@ -93,6 +93,10 @@ class DatabaseParams:
     min_timestamp: pd.Timestamp = pd.Timestamp("1990-01-01")
     max_timestamp: pd.Timestamp = pd.Timestamp("2025-01-01")
     column_nan_perc_choices: Choices = Choices(kind="range", value=[0.01, 0.1])
+    col_transform_choices: Choices = Choices(
+        kind="set",
+        value=["identity", "rank_uniform", "log", "sqrt", "standardize"],
+    )
 
 
 @dataclass(frozen=True)
@@ -150,15 +154,12 @@ class SCMParams:
             F.hardshrink,
             lambda x: x,
             lambda x: x.abs(),
-            lambda x: x**2,
-            lambda x: x**3,
             torch.sin,
             torch.cos,
             torch.sign,
             lambda x: x.clamp(-1, 1),
             lambda x: torch.log1p(x.abs()) * x.sign(),
             lambda x: (torch.sqrt(x**2 + 1) - 1) / 2 + x,
-            lambda x: torch.exp(-(x**2)),
             RandomFunctionActivation(),
         ],
     )
@@ -189,7 +190,7 @@ class SCMParams:
 
     mlp_in_dim: int = 1
     mlp_out_dim: int = 1
-    mlp_emb_dim_choices: Choices = Choices(kind="set", value=[16, 32, 64, 128])
+    mlp_emb_dim: int = 32
     mlp_num_layers_choices: Choices = Choices(kind="range", value=[2, 4])
     mlp_weight_density_choices: Choices = Choices(kind="range", value=[0.3, 1.0])
     source_gen_type_choices: Choices = Choices(

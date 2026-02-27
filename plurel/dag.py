@@ -198,7 +198,7 @@ class WattsStrogatz(DAG):
 
 class RandomCauchy(DAG):
     def _sigmoid(self, x: np.ndarray) -> np.ndarray:
-        return 1.0 / (1.0 + np.exp(-x))
+        return 1.0 / (1.0 + np.exp(-np.clip(x, -500, 500)))
 
     def sample(self, num_nodes: int) -> nx.DiGraph:
         if num_nodes < 2:

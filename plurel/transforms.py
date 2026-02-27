@@ -31,7 +31,7 @@ class MLP:
         for W in self.weights[:-1]:
             act_fn = self.scm_params.activation_choices.sample_uniform()
             log_scale = np.random.uniform(-1.0, 1.0)
-            x = math.exp(log_scale) * act_fn(x @ W)
+            x = torch.clamp(math.exp(log_scale) * act_fn(x @ W), -1e6, 1e6)
         return x @ self.weights[-1]
 
 
