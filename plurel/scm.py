@@ -342,6 +342,8 @@ class SCM:
         self.validate_foreign_scms()
         self.initialize_dag()
         self.initialize_nodes_and_edges()
+        self._topological_generations = list(nx.topological_generations(self.dag.graph))
+        self._collation_cache: dict[str, list[tuple]] = {}
 
     def initialize_dag(self):
         dag_class = self.scm_params.scm_layout_choices.sample_uniform()
@@ -453,8 +455,7 @@ class SCM:
             )
             foreign_scms_row_embds.append(foreign_row_embds)
 
-        topological_gens = nx.topological_generations(self.dag.graph)
-        for gen in topological_gens:
+        for gen in self._topological_generations:
             for node in gen:
                 node_stype = self.dag.graph.nodes[node]["_stype"]
                 if node in self.source_nodes:
@@ -503,7 +504,7 @@ class SCM:
             foreign_scm = self.foreign_scm_info[foreign_table_name]
             foreign_scms.append(foreign_scm)
             bi_g = self.bi_fk_pk_graph_map[foreign_table_name]
-            parent_node_name = list(bi_g.in_edges(f"b{row_idx}"))[0][0]
+            parent_node_name = next(iter(bi_g.predecessors(f"b{row_idx}")))
             foreign_row_idx = bi_g.nodes[parent_node_name]["node_idx"]
             foreign_row_idxs.append(foreign_row_idx)
             row[fkey_col] = foreign_row_idx
@@ -589,24 +590,23 @@ class SCM:
         return self.df
 
     def collate_feature_embeddings(self, row_idx: int, child_table_name: int):
-        col_to_stype = {}
-        col_to_num_categories = {}
-        col_to_collation_encoder = {}
-        for node in sorted(self.col_nodes):
-            col_name = self.dag.graph.nodes[node]["col_name"]
-            col_to_stype[col_name] = self.dag.graph.nodes[node]["_stype"]
-            col_to_num_categories[col_name] = self.dag.graph.nodes[node]["num_categories"]
-            col_to_collation_encoder[col_name] = self.dag.graph.nodes[node]["collation_encoders"][
-                (self.table_name, child_table_name)
+        if child_table_name not in self._collation_cache:
+            # (col_name, _stype, encoder) — stable across all rows for this child_table_name
+            self._collation_cache[child_table_name] = [
+                (
+                    self.dag.graph.nodes[node]["col_name"],
+                    self.dag.graph.nodes[node]["_stype"],
+                    self.dag.graph.nodes[node]["collation_encoders"][
+                        (self.table_name, child_table_name)
+                    ],
+                )
+                for node in sorted(self.col_nodes)
             ]
-        row = self.df.iloc[row_idx].to_dict()
+        col_entries = self._collation_cache[child_table_name]
         row_embds = []
         # for p->f embedding propagation
-        for col_name, value in row.items():
-            if col_name not in col_to_stype:
-                continue
-            _stype = col_to_stype[col_name]
+        for col_name, _stype, encoder in col_entries:
+            value = self.df.at[row_idx, col_name]
             value_tensor = self.strategy.tensorize_col(value=value, _stype=_stype)
-            encoder = col_to_collation_encoder[col_name]
             row_embds.append(encoder(value_tensor).squeeze())
         return row_embds

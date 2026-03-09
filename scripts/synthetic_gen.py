@@ -4,6 +4,7 @@ from functools import partial
 from multiprocessing import Pool, cpu_count
 from pathlib import Path
 
+import torch
 from tqdm import tqdm
 
 from plurel.config import Config
@@ -12,6 +13,7 @@ from plurel.utils import set_random_seed
 
 
 def generate_rel_synthetic_db(seed: int, preprocess: bool = False):
+    torch.set_num_threads(1)
     set_random_seed(0)
     db_name = f"rel-synthetic-{seed}"
     print(f"Creating dataset: {db_name}")

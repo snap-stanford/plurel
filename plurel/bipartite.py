@@ -81,18 +81,10 @@ def get_bipartite_hsbm(size_a: int, size_b: int, hierarchy_a: list, hierarchy_b:
         )
 
     for b_idx, b_node in tqdm(enumerate(nodes_b), desc="adding edges in bi_hsbm", leave=False):
-        probs = np.array(
-            [
-                get_nodes_connect_prob(
-                    node_idx_a=a_idx,
-                    node_idx_b=b_idx,
-                    probs_at_levels=probs_at_levels,
-                    cluster_at_levels_a=cluster_at_levels_a,
-                    cluster_at_levels_b=cluster_at_levels_b,
-                )
-                for a_idx in range(size_a)
-            ]
-        )
+        probs = np.ones(size_a)
+        for l_idx in range(len(probs_at_levels)):
+            cluster_b = cluster_at_levels_b[b_idx, l_idx]
+            probs *= probs_at_levels[l_idx][cluster_at_levels_a[:, l_idx], cluster_b]
         try:
             probs = probs / probs.sum()
         except ValueError:
