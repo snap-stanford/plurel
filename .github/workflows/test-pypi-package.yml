@@ -1,0 +1,55 @@
+name: Test PyPI package
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Mondays 12:00 UTC — catches dep drift even without a new release.
+    - cron: "0 12 * * 1"
+  release:
+    types: [published]
+
+jobs:
+  smoke:
+    name: pip install + smoke test (Python ${{ matrix.python }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.12", "3.13"]
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Install plurel from PyPI
+        run: pip install --upgrade plurel
+
+      - name: Show installed version + resolved deps
+        run: |
+          pip show plurel
+          pip list
+
+      - name: Import smoke test
+        run: |
+          python - <<'PY'
+          import plurel
+          assert set(plurel.__all__) == {
+              "Choices", "Config", "DAGParams", "DatabaseParams", "SCMParams", "SyntheticDataset",
+          }, plurel.__all__
+          print("import OK")
+          PY
+
+      - name: Generate a minimal synthetic database
+        run: |
+          python - <<'PY'
+          from plurel import Choices, Config, DatabaseParams, SyntheticDataset
+          # Minimal config: small number of tables and rows so the test runs in seconds.
+          config = Config(
+              database_params=DatabaseParams(
+                  num_tables_choices=Choices(kind="set", value=[3]),
+              ),
+          )
+          dataset = SyntheticDataset(seed=0, config=config)
+          db = dataset.make_db()
+          print(f"OK — generated DB with {len(db.table_dict)} tables")
+          PY
