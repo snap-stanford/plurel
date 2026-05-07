@@ -1,14 +1,68 @@
 [project]
 name = "plurel"
+version = "1.0.0"
+description = "Synthesize diverse multi-tabular relational databases using Structural Causal Models, enabling scaling laws for Relational Foundation Models."
+readme = "README.md"
 requires-python = ">=3.12"
-version = "0.1.0"
+license = { file = "LICENSE" }
+authors = [
+    { name = "Vignesh Kothapalli" },
+    { name = "Rishabh Ranjan" },
+    { name = "Valter Hudovernik" },
+    { name = "Vijay Prakash Dwivedi" },
+    { name = "Johannes Hoffart" },
+    { name = "Carlos Guestrin" },
+    { name = "Jure Leskovec" },
+]
+keywords = [
+    "synthetic data",
+    "relational foundation models",
+    "scaling laws",
+    "structural causal models",
+    "multi-table databases",
+    "relbench",
+    "pretraining",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "networkx",
+    "numpy",
+    "pandas",
+    "pytorch-frame",
+    "relbench==1.1.0",
+    "sqlalchemy>=2",
+    "torch>=2",
+    "tqdm",
+]
+
+[project.urls]
+Homepage = "https://snap-stanford.github.io/plurel/"
+Repository = "https://github.com/snap-stanford/plurel"
+Paper = "https://arxiv.org/abs/2602.04029"
+Issues = "https://github.com/snap-stanford/plurel/issues"
 
 [build-system]
 build-backend = "hatchling.build"
 requires = ["hatchling"]
 
-[tool.setuptools.packages.find]
-where = ["."]
+[tool.hatch.build.targets.wheel]
+packages = ["plurel"]
+
+[tool.hatch.build.targets.sdist]
+only-include = [
+    "plurel",
+    "README.md",
+    "LICENSE",
+    "pyproject.toml",
+]
 
 [tool.pixi.workspace]
 channels = ["conda-forge"]
