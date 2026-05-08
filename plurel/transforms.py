@@ -3,7 +3,7 @@ import math
 import numpy as np
 import torch
 
-from plurel.config import SCMParams
+from plurel.config import RandomFunctionActivation, SCMParams
 
 
 class MLP:
@@ -16,7 +16,6 @@ class MLP:
     ):
         num_layers = int(scm_params.mlp_num_layers_choices.sample_uniform())
         assert num_layers >= 1
-        self.scm_params = scm_params
         dims = [in_dim] + [hid_dim] * (num_layers - 1) + [out_dim]
         self.weights = [torch.empty(dims[i], dims[i + 1]) for i in range(num_layers)]
         for W in self.weights:
@@ -26,12 +25,19 @@ class MLP:
             density = float(scm_params.mlp_weight_density_choices.sample_uniform())
             mask = torch.bernoulli(torch.full_like(W, density))
             W.data *= mask / max(density, 1e-6)
+        self.act_scales = []
+        for _ in range(num_layers - 1):
+            act_fn = scm_params.activation_choices.sample_uniform()
+            if isinstance(act_fn, RandomFunctionActivation):
+                # The instance in activation_choices is a marker; instantiate
+                # a fresh RFA so this layer's activation has its own frozen
+                # params, independent of any other layer that picked RFA.
+                act_fn = RandomFunctionActivation()
+            self.act_scales.append((act_fn, math.exp(np.random.uniform(-1.0, 1.0))))
 
     def __call__(self, x):
-        for W in self.weights[:-1]:
-            act_fn = self.scm_params.activation_choices.sample_uniform()
-            log_scale = np.random.uniform(-1.0, 1.0)
-            x = torch.clamp(math.exp(log_scale) * act_fn(x @ W), -1e6, 1e6)
+        for W, (act_fn, scale) in zip(self.weights[:-1], self.act_scales):
+            x = torch.clamp(scale * act_fn(x @ W), -1e6, 1e6)
         return x @ self.weights[-1]
 
 

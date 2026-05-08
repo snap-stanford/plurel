@@ -12,7 +12,7 @@ from torch.distributions import Beta
 from torch_frame import stype
 from tqdm import tqdm
 
-from plurel.bipartite import get_bipartite_hsbm
+from plurel.bipartite import sample_bipartite_assignments
 from plurel.config import DAGParams, SCMParams
 from plurel.dag import DAG_REGISTRY
 from plurel.transforms import MLP, CategoricalDecoder, CategoricalEncoder
@@ -230,10 +230,18 @@ class PropagationStrategy:
     def make_edge_encoder(self, _stype, num_categories):
         raise NotImplementedError
 
-    def tensorize_source(self, value, _stype) -> torch.Tensor:
+    def tensorize_source(self, values: np.ndarray, _stype) -> torch.Tensor:
+        """Tensorize a 1-D batch of source values for one node.
+
+        Returns shape (N,) for categorical (long) and (N, 1) for numerical (float).
+        """
         raise NotImplementedError
 
-    def tensorize_col(self, value, _stype) -> torch.Tensor:
+    def tensorize_col(self, values: np.ndarray, _stype) -> torch.Tensor:
+        """Tensorize a 1-D batch of column values for cross-SCM collation.
+
+        Returns shape (N,) for categorical (long) and (N, 1) for numerical (float).
+        """
         raise NotImplementedError
 
     def post_generate(self, scm) -> None:
@@ -256,15 +264,15 @@ class EagerPropagationStrategy(PropagationStrategy):
     def make_edge_encoder(self, _stype, num_categories):
         return self.get_encoder(_stype=_stype, num_categories=num_categories)
 
-    def tensorize_source(self, value, _stype):
+    def tensorize_source(self, values, _stype):
         if _stype == stype.categorical:
-            return torch.LongTensor([value])
-        return torch.Tensor([value])
+            return torch.as_tensor(values, dtype=torch.long)
+        return torch.as_tensor(values, dtype=torch.float32).unsqueeze(-1)
 
-    def tensorize_col(self, value, _stype):
+    def tensorize_col(self, values, _stype):
         if _stype == stype.categorical:
-            return torch.LongTensor([value])
-        return torch.Tensor([value])
+            return torch.as_tensor(values, dtype=torch.long)
+        return torch.as_tensor(values, dtype=torch.float32).unsqueeze(-1)
 
 
 class LazyPropagationStrategy(PropagationStrategy):
@@ -285,11 +293,11 @@ class LazyPropagationStrategy(PropagationStrategy):
     def make_edge_encoder(self, _stype, num_categories):
         return self.get_encoder(_stype=stype.numerical)
 
-    def tensorize_source(self, value, _stype):
-        return torch.Tensor([value])
+    def tensorize_source(self, values, _stype):
+        return torch.as_tensor(values, dtype=torch.float32).unsqueeze(-1)
 
-    def tensorize_col(self, value, _stype):
-        return torch.Tensor([value])
+    def tensorize_col(self, values, _stype):
+        return torch.as_tensor(values, dtype=torch.float32).unsqueeze(-1)
 
     def post_generate(self, scm):
         scm._apply_categorical_quantization()
@@ -447,83 +455,113 @@ class SCM:
             raise ValueError(f"Unknown aggregation mode: {mode}")
         return AGGREGATION_REGISTRY[mode](stack)
 
-    def propagate(self, row_idx: int, foreign_row_idxs: list[int], foreign_scms: list[SCM]):
-        foreign_scms_row_embds: list[list] = []
-        for foreign_row_idx, foreign_scm in zip(foreign_row_idxs, foreign_scms):
-            foreign_row_embds = foreign_scm.collate_feature_embeddings(
-                row_idx=foreign_row_idx, child_table_name=self.table_name
+    def propagate(self):
+        """Run the SCM forward over all rows of this table in chunks.
+
+        Pre-generates source values and per-node Beta noise once over all
+        rows so the per-row outputs are independent of `propagate_batch_size`
+        — chunking is a pure implementation detail. Then walks the DAG
+        topologically per chunk so every per-node op is a single batched
+        tensor call. Column-node outputs are accumulated per chunk and
+        concatenated at the end.
+
+        Memory note: pre-allocated noise is O(num_non_source_nodes × num_rows
+        × emb_dim). At default emb_dim=32 that's ~3 KB per row.
+        """
+        # Pre-generate source values for all rows so any sequential state
+        # (e.g. AR noise in TSDataGenerator) is built in row-index order.
+        source_values_full: dict[int, np.ndarray] = {}
+        for node, gen in self.source_node_to_ts_data_gen.items():
+            source_values_full[node] = np.asarray(
+                [gen.get_value(row_idx=i) for i in range(self.num_rows)]
             )
-            foreign_scms_row_embds.append(foreign_row_embds)
 
-        for gen in self._topological_generations:
-            for node in gen:
-                node_stype = self.dag.graph.nodes[node]["_stype"]
-                if node in self.source_nodes:
-                    value = self.source_node_to_ts_data_gen[node].get_value(row_idx=row_idx)
-                    self.dag.graph.nodes[node]["value"] = self.strategy.tensorize_source(
-                        value=value, _stype=node_stype
+        # Pre-sample noise per (non-source node, row) so the noise vector at
+        # row r for node n is fixed regardless of chunk boundaries.
+        emb_dim = self.strategy.mlp_emb_dim
+        node_noise: dict[int, torch.Tensor] = {}
+        for node in self.dag.graph.nodes:
+            if node in self.source_nodes:
+                continue
+            noise_dist = self.dag.graph.nodes[node]["noise_dist"]
+            node_noise[node] = (
+                noise_dist.sample(sample_shape=(self.num_rows, emb_dim)).squeeze(-1) / emb_dim
+            )
+
+        foreign_table_names = list(self.fkey_col_to_pkey_table.values())
+        foreign_scms = [self.foreign_scm_info[fname] for fname in foreign_table_names]
+
+        col_node_chunks: dict[int, list[torch.Tensor]] = {node: [] for node in self.col_nodes}
+
+        batch_size = self.scm_params.propagate_batch_size
+        for chunk_start in range(0, self.num_rows, batch_size):
+            chunk_end = min(chunk_start + batch_size, self.num_rows)
+
+            foreign_scms_embds: list[list[torch.Tensor]] = []
+            for fname, foreign_scm in zip(foreign_table_names, foreign_scms):
+                chunk_foreign_idxs = self.foreign_row_idxs_map[fname][chunk_start:chunk_end]
+                foreign_scms_embds.append(
+                    foreign_scm.collate_feature_embeddings(
+                        row_idxs=chunk_foreign_idxs, child_table_name=self.table_name
                     )
-                else:
-                    parent_nodes = list(self.dag.graph.predecessors(node))
-                    propagation_agg = self.dag.graph.nodes[node]["propagation_agg"]
+                )
 
-                    # directly add noise
-                    noise_dist = self.dag.graph.nodes[node]["noise_dist"]
-                    node_emb = (
-                        noise_dist.sample(sample_shape=(self.strategy.mlp_emb_dim,)).squeeze()
-                        / self.strategy.mlp_emb_dim
-                    )
-
-                    all_embs, all_weights = [], []
-                    for parent_node in parent_nodes:
-                        parent_attrs = self.dag.graph.nodes[parent_node]
-                        encoder = self.dag.graph.edges[parent_node, node]["encoder"]
-                        all_embs.append(encoder(parent_attrs["value"]).squeeze())
-                        all_weights.append(
-                            self.dag.graph.get_edge_data(parent_node, node)["weight"]
+            for gen_layer in self._topological_generations:
+                for node in gen_layer:
+                    node_stype = self.dag.graph.nodes[node]["_stype"]
+                    if node in self.source_nodes:
+                        chunk_values = source_values_full[node][chunk_start:chunk_end]
+                        value = self.strategy.tensorize_source(
+                            values=chunk_values, _stype=node_stype
                         )
-                    for foreign_row_embds in foreign_scms_row_embds:
-                        w = 1 / len(foreign_row_embds) if propagation_agg == "sum" else 1.0
-                        for foreign_row_embd in foreign_row_embds:
-                            all_embs.append(foreign_row_embd)
-                            all_weights.append(w)
+                    else:
+                        parent_nodes = list(self.dag.graph.predecessors(node))
+                        propagation_agg = self.dag.graph.nodes[node]["propagation_agg"]
 
-                    if all_embs:
-                        node_emb = node_emb + self._aggregate_embeddings(
-                            embs=all_embs, weights=all_weights, mode=propagation_agg
-                        )
+                        # noise was pre-sampled per (node, row); slice per chunk
+                        node_emb = node_noise[node][chunk_start:chunk_end]
 
-                    decoder = self.dag.graph.nodes[node]["decoder"]
-                    self.dag.graph.nodes[node]["value"] = decoder(node_emb)
+                        all_embs, all_weights = [], []
+                        for parent_node in parent_nodes:
+                            parent_value = self.dag.graph.nodes[parent_node]["value"]
+                            encoder = self.dag.graph.edges[parent_node, node]["encoder"]
+                            all_embs.append(encoder(parent_value))
+                            all_weights.append(
+                                self.dag.graph.get_edge_data(parent_node, node)["weight"]
+                            )
+                        for foreign_row_embds in foreign_scms_embds:
+                            w = 1 / len(foreign_row_embds) if propagation_agg == "sum" else 1.0
+                            for foreign_row_embd in foreign_row_embds:
+                                all_embs.append(foreign_row_embd)
+                                all_weights.append(w)
 
-    def generate_row(self, row_idx: int):
-        row = {self.pkey_col: row_idx}
-        foreign_row_idxs = []
-        foreign_scms = []
-        for fkey_col, foreign_table_name in self.fkey_col_to_pkey_table.items():
-            foreign_scm = self.foreign_scm_info[foreign_table_name]
-            foreign_scms.append(foreign_scm)
-            bi_g = self.bi_fk_pk_graph_map[foreign_table_name]
-            parent_node_name = next(iter(bi_g.predecessors(f"b{row_idx}")))
-            foreign_row_idx = bi_g.nodes[parent_node_name]["node_idx"]
-            foreign_row_idxs.append(foreign_row_idx)
-            row[fkey_col] = foreign_row_idx
+                        if all_embs:
+                            node_emb = node_emb + self._aggregate_embeddings(
+                                embs=all_embs, weights=all_weights, mode=propagation_agg
+                            )
 
-        self.propagate(
-            row_idx=row_idx,
-            foreign_row_idxs=foreign_row_idxs,
-            foreign_scms=foreign_scms,
-        )
-        for node in sorted(self.col_nodes):
-            col_name = self.dag.graph.nodes[node]["col_name"]
-            row[col_name] = self.dag.graph.nodes[node]["value"].item()
-        return row
+                        decoder = self.dag.graph.nodes[node]["decoder"]
+                        value = decoder(node_emb)
+
+                    self.dag.graph.nodes[node]["value"] = value
+                    if node in self.col_nodes:
+                        col_node_chunks[node].append(value)
+
+        for node in self.col_nodes:
+            chunks = col_node_chunks[node]
+            self.dag.graph.nodes[node]["value"] = (
+                chunks[0] if len(chunks) == 1 else torch.cat(chunks, dim=0)
+            )
 
     def initialize_bi_fk_pk_graph_map(self):
-        self.bi_fk_pk_graph_map = {}
+        """Sample, for each foreign table, a parent-row index per child row
+        from a hierarchical SBM joint distribution. Stored as a flat
+        ``(num_rows,)`` int64 array per foreign table.
+        """
+        self.foreign_row_idxs_map: dict[str, np.ndarray] = {}
         for foreign_table_name, foreign_scm in tqdm(
             self.foreign_scm_info.items(),
-            desc="Generating bi_fk_pk_graphs",
+            desc="Sampling FK→PK assignments",
             leave=False,
         ):
             num_levels = self.scm_params.bi_hsbm_levels_choices.sample_uniform()
@@ -535,13 +573,12 @@ class SCM:
                 self.scm_params.bi_hsbm_clusters_per_level_choices.sample_uniform()
                 for _ in range(num_levels)
             ]
-            bi_g = get_bipartite_hsbm(
+            self.foreign_row_idxs_map[foreign_table_name] = sample_bipartite_assignments(
                 size_a=len(foreign_scm.df),
                 size_b=self.num_rows,
                 hierarchy_a=hierarchy_a,
                 hierarchy_b=hierarchy_b,
             )
-            self.bi_fk_pk_graph_map[foreign_table_name] = bi_g
 
     def _apply_categorical_quantization(self):
         for node in self.col_nodes:
@@ -576,12 +613,25 @@ class SCM:
         self.num_rows = num_rows
         self.initialize_ts_data_gens(num_rows=num_rows, table_type=table_type)
         self.initialize_bi_fk_pk_graph_map()
-        self.df = pd.DataFrame(
-            [
-                self.generate_row(row_idx=row_idx)
-                for row_idx in tqdm(range(self.num_rows), desc="generating rows", leave=False)
-            ]
-        )
+        self.propagate()
+
+        df_dict: dict[str, np.ndarray] = {}
+        if self.pkey_col is not None:
+            df_dict[self.pkey_col] = np.arange(num_rows, dtype=np.int64)
+        for fkey_col, foreign_table_name in self.fkey_col_to_pkey_table.items():
+            df_dict[fkey_col] = self.foreign_row_idxs_map[foreign_table_name]
+        for node in sorted(self.col_nodes):
+            col_name = self.dag.graph.nodes[node]["col_name"]
+            value = self.dag.graph.nodes[node]["value"]
+            if value.dtype == torch.int64:
+                df_dict[col_name] = value.numpy()
+            else:
+                # numerical decoder produces (N, 1); flatten + cast to float64
+                # so downstream dtype checks (`_type in [float]`) match the
+                # previous per-row .item() behavior.
+                df_dict[col_name] = value.squeeze(-1).numpy().astype(np.float64)
+        self.df = pd.DataFrame(df_dict)
+
         self.strategy.post_generate(scm=self)
         if min_timestamp and max_timestamp:
             self.df["date"] = pd.date_range(
@@ -589,9 +639,15 @@ class SCM:
             )
         return self.df
 
-    def collate_feature_embeddings(self, row_idx: int, child_table_name: int):
+    def collate_feature_embeddings(self, row_idxs: np.ndarray, child_table_name: str):
+        """Encode parent column values at the given row indices for cross-SCM
+        propagation. Returns one (N, emb_dim) tensor per col-node, where N is
+        the length of row_idxs.
+        """
         if child_table_name not in self._collation_cache:
-            # (col_name, _stype, encoder) — stable across all rows for this child_table_name
+            # (col_name, _stype, encoder, col_values_array) — stable across calls
+            # for this child_table_name; col_values_array caches the numpy view
+            # of self.df[col_name] so per-chunk gathers don't re-pay pandas cost.
             self._collation_cache[child_table_name] = [
                 (
                     self.dag.graph.nodes[node]["col_name"],
@@ -599,14 +655,14 @@ class SCM:
                     self.dag.graph.nodes[node]["collation_encoders"][
                         (self.table_name, child_table_name)
                     ],
+                    self.df[self.dag.graph.nodes[node]["col_name"]].to_numpy(),
                 )
                 for node in sorted(self.col_nodes)
             ]
         col_entries = self._collation_cache[child_table_name]
-        row_embds = []
-        # for p->f embedding propagation
-        for col_name, _stype, encoder in col_entries:
-            value = self.df.at[row_idx, col_name]
-            value_tensor = self.strategy.tensorize_col(value=value, _stype=_stype)
-            row_embds.append(encoder(value_tensor).squeeze())
-        return row_embds
+        embds: list[torch.Tensor] = []
+        for _col_name, _stype, encoder, col_values_arr in col_entries:
+            col_values = col_values_arr[row_idxs]
+            value_tensor = self.strategy.tensorize_col(values=col_values, _stype=_stype)
+            embds.append(encoder(value_tensor))
+        return embds

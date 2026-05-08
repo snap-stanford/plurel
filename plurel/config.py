@@ -68,14 +68,23 @@ class Choices:
 
 
 class RandomFunctionActivation:
-    """Composite sine-wave activation: re-randomized on every call."""
+    """Composite sine-wave activation with frozen random parameters.
+
+    Params (n components, amplitudes, freqs, phases) are sampled once at
+    construction so the activation is a deterministic function of its input.
+    Each MLP layer that picks this activation gets a fresh instance — see
+    `MLP.__init__` — which keeps SCMs deterministic functions of their
+    inputs and decouples per-row outputs from how rows are batched.
+    """
+
+    def __init__(self):
+        self.n = int(np.random.randint(3, 8))
+        self.amplitudes = torch.randn(self.n)
+        self.freqs = torch.exp(torch.FloatTensor(self.n).uniform_(math.log(0.1), math.log(10.0)))
+        self.phases = torch.FloatTensor(self.n).uniform_(0, 2 * math.pi)
 
     def __call__(self, x: torch.Tensor) -> torch.Tensor:
-        n = np.random.randint(3, 8)
-        amplitudes = torch.randn(n)
-        freqs = torch.exp(torch.FloatTensor(n).uniform_(math.log(0.1), math.log(10.0)))
-        phases = torch.FloatTensor(n).uniform_(0, 2 * math.pi)
-        return (amplitudes * torch.sin(freqs * x.unsqueeze(-1) + phases)).sum(dim=-1)
+        return (self.amplitudes * torch.sin(self.freqs * x.unsqueeze(-1) + self.phases)).sum(dim=-1)
 
 
 @dataclass(frozen=True)
@@ -201,6 +210,12 @@ class SCMParams:
     propagation_mode_choices: Choices = Choices(kind="set", value=["type_eager", "type_lazy"])
     cat_label_permute_prob_choices: Choices = Choices(kind="range", value=[0.3, 1.0])
     cat_label_reverse_prob_choices: Choices = Choices(kind="range", value=[0.2, 0.8])
+
+    # Rows per chunk for batched propagation. Larger amortizes Python/torch
+    # dispatch overhead; smaller bounds peak memory. ~4k keeps each
+    # (chunk, emb) tensor in single-digit MBs at emb_dim=32 while still being
+    # far above the point where dispatch overhead dominates.
+    propagate_batch_size: int = 4096
 
 
 @dataclass(frozen=True)

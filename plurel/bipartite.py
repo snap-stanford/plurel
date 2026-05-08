@@ -1,6 +1,5 @@
 import networkx as nx
 import numpy as np
-from tqdm import tqdm
 
 
 def assign_cluster_at_levels(num_nodes: int, hierarchy: list):
@@ -55,18 +54,74 @@ def get_nodes_connect_prob(
     return np.prod(probs)
 
 
-def get_bipartite_hsbm(size_a: int, size_b: int, hierarchy_a: list, hierarchy_b: list):
+def sample_bipartite_assignments(
+    size_a: int,
+    size_b: int,
+    hierarchy_a: list,
+    hierarchy_b: list,
+    chunk_memory_bytes: int = 100_000_000,
+) -> np.ndarray:
+    """For each of ``size_b`` child nodes, sample one parent index in
+    ``[0, size_a)`` according to the hierarchical SBM joint probability:
+    ``P(a, b) ∝ Π_l P_l[cluster_a[a, l], cluster_b[b, l]]``.
+
+    Vectorized across the child axis in chunks sized to fit the
+    ``(size_a, chunk)`` log-prob matrix in ``chunk_memory_bytes``. Probabilities
+    are accumulated in log space to avoid underflow when many small per-level
+    probabilities are multiplied. Sampling is done via inverse-CDF over the
+    per-column distribution — equivalent in distribution to the original
+    ``np.random.choice`` per child, but vectorized.
+
+    Returns
+    -------
+    parent_idx : (size_b,) int64 array
+        ``parent_idx[b]`` is the sampled parent for child ``b``.
+    """
     assert len(hierarchy_a) == len(hierarchy_b), "only similar hierarchy levels are supported"
 
     cluster_at_levels_a = assign_cluster_at_levels(num_nodes=size_a, hierarchy=hierarchy_a)
     cluster_at_levels_b = assign_cluster_at_levels(num_nodes=size_b, hierarchy=hierarchy_b)
     probs_at_levels = get_probs_at_levels(hierarchy_a=hierarchy_a, hierarchy_b=hierarchy_b)
+    log_p_at_levels = [np.log(p) for p in probs_at_levels]
+
+    bytes_per_cell = 8  # float64
+    chunk = max(1, min(size_b, chunk_memory_bytes // max(1, size_a * bytes_per_cell)))
+
+    parent_idx = np.empty(size_b, dtype=np.int64)
+    for b_start in range(0, size_b, chunk):
+        b_end = min(b_start + chunk, size_b)
+        cw = b_end - b_start
+        log_p = np.zeros((size_a, cw), dtype=np.float64)
+        for l_idx, log_p_l in enumerate(log_p_at_levels):
+            log_p += log_p_l[
+                cluster_at_levels_a[:, l_idx][:, None],
+                cluster_at_levels_b[b_start:b_end, l_idx][None, :],
+            ]
+        # log-softmax per column for numerical stability before exp
+        log_p -= log_p.max(axis=0, keepdims=True)
+        p = np.exp(log_p)
+        p /= p.sum(axis=0, keepdims=True)
+        cdf = np.cumsum(p, axis=0)
+        u = np.random.uniform(0.0, 1.0, size=(1, cw))
+        parent_idx[b_start:b_end] = (cdf >= u).argmax(axis=0)
+
+    return parent_idx
+
+
+def get_bipartite_hsbm(size_a: int, size_b: int, hierarchy_a: list, hierarchy_b: list):
+    """Build a NetworkX bipartite DiGraph by sampling parent assignments and
+    materializing nodes/edges. Retained for backward compat (tests / external
+    callers); inside SCM we use ``sample_bipartite_assignments`` directly.
+    """
+    parent_idx = sample_bipartite_assignments(
+        size_a=size_a, size_b=size_b, hierarchy_a=hierarchy_a, hierarchy_b=hierarchy_b
+    )
+    cluster_at_levels_a = assign_cluster_at_levels(num_nodes=size_a, hierarchy=hierarchy_a)
+    cluster_at_levels_b = assign_cluster_at_levels(num_nodes=size_b, hierarchy=hierarchy_b)
 
     bi_hsbm = nx.DiGraph()
-
     nodes_a = [f"a{i}" for i in range(size_a)]
     nodes_b = [f"b{j}" for j in range(size_b)]
-
     for a_idx, a_node in enumerate(nodes_a):
         bi_hsbm.add_node(
             a_node,
@@ -79,18 +134,8 @@ def get_bipartite_hsbm(size_a: int, size_b: int, hierarchy_a: list, hierarchy_b:
             node_idx=b_idx,
             hierarchy=list(cluster_at_levels_b[b_idx]),
         )
-
-    for b_idx, b_node in tqdm(enumerate(nodes_b), desc="adding edges in bi_hsbm", leave=False):
-        probs = np.ones(size_a)
-        for l_idx in range(len(probs_at_levels)):
-            cluster_b = cluster_at_levels_b[b_idx, l_idx]
-            probs *= probs_at_levels[l_idx][cluster_at_levels_a[:, l_idx], cluster_b]
-        try:
-            probs = probs / probs.sum()
-        except ValueError:
-            probs = None
-        a_idx = np.random.choice(range(size_a), p=probs)
-        bi_hsbm.add_edge(nodes_a[a_idx], b_node)
+    for b_idx, a_idx in enumerate(parent_idx):
+        bi_hsbm.add_edge(nodes_a[int(a_idx)], nodes_b[b_idx])
 
     assert nx.is_bipartite(bi_hsbm)
     return bi_hsbm
