@@ -1,5 +1,7 @@
-# Local PyPI publishing helpers (gitignored)
+# Local helper scripts (gitignored)
 publish.sh
+run-tests.sh
+test-pypi-package.sh
 .publish-venv/
 
 # Byte-compiled / optimized / DLL files
