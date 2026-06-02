@@ -1,0 +1,220 @@
+/* ============================================================================
+   PluRel interactive widgets - Distill-flavoured styling.
+   Uses the shared design tokens from distill.css (--tok-*, --d-*).
+   ========================================================================== */
+
+/* ---------- widget shell ---------- */
+.pv-widget {
+  border: 1px solid var(--d-rule-strong);
+  border-top: 3px solid var(--pv-accent, #334155);
+  border-radius: 10px;
+  background: #fff;
+  padding: 1.05rem 1.2rem 1.2rem;
+  font-family: var(--d-sans);
+  color: var(--d-text);
+  margin: 1.4rem 0 0.5rem;
+}
+.pv-stage1 { --pv-accent: #334155; }                 /* slate  */
+.pv-stage2 { --pv-accent: var(--tok-reason); }       /* violet */
+.pv-stage3 { --pv-accent: var(--tok-exo); }          /* amber  */
+
+.pv-head { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 0.85rem; }
+.pv-badge {
+  font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em;
+  padding: 0.2rem 0.6rem; border-radius: 999px; white-space: nowrap;
+  background: color-mix(in srgb, var(--pv-accent) 11%, #fff);
+  color: var(--pv-accent);
+  border: 1px solid color-mix(in srgb, var(--pv-accent) 28%, #fff);
+}
+.pv-title { font-weight: 600; font-size: 0.95rem; color: var(--d-text-strong); }
+
+/* ---------- controls ---------- */
+.pv-controls { display: flex; flex-wrap: wrap; gap: 0.85rem 1.3rem; align-items: flex-end; margin-bottom: 0.95rem; }
+.pv-control { display: flex; flex-direction: column; gap: 0.3rem; }
+.pv-control > label {
+  font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--d-muted); font-weight: 600;
+}
+.pv-control .pv-val { color: var(--pv-accent); font-variant-numeric: tabular-nums; }
+.pv-spacer { margin-left: auto; }
+
+/* compact grouped control panel (Stage 3) */
+.pv-knobbox { border: 1px solid var(--d-rule); border-radius: 8px; background: var(--d-bg-alt); padding: 0.55rem 0.7rem; margin-bottom: 0.7rem; }
+.pv-controls-compact { gap: 0.3rem 0.6rem; margin-bottom: 0; align-items: flex-end; }
+.pv-controls-compact .pv-control { gap: 0.18rem; }
+.pv-controls-compact .pv-control > label { font-size: 0.58rem; letter-spacing: 0.02em; white-space: nowrap; }
+.pv-controls-compact input[type="range"].pv-range { width: 72px; margin: 3px 0; }
+.pv-controls-compact .pv-seg button { padding: 0.26rem 0.46rem; font-size: 0.71rem; }
+.pv-controls-compact .pv-btn { padding: 0.32rem 0.58rem; font-size: 0.73rem; }
+
+input[type="range"].pv-range {
+  -webkit-appearance: none; appearance: none;
+  width: 150px; height: 4px; border-radius: 4px; background: var(--d-rule-strong); outline: none; margin: 6px 0;
+}
+input[type="range"].pv-range::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none; width: 15px; height: 15px; border-radius: 50%;
+  background: var(--pv-accent, #334155); cursor: pointer; border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+input[type="range"].pv-range::-moz-range-thumb {
+  width: 15px; height: 15px; border-radius: 50%; background: var(--pv-accent, #334155); cursor: pointer; border: 2px solid #fff;
+}
+
+.pv-seg { display: inline-flex; border: 1px solid var(--d-rule-strong); border-radius: 7px; overflow: hidden; }
+.pv-seg button {
+  border: none; background: #fff; padding: 0.36rem 0.6rem; font-family: var(--d-sans); font-size: 0.76rem;
+  cursor: pointer; color: var(--d-muted); border-right: 1px solid var(--d-rule); font-variant-numeric: tabular-nums; transition: background 0.12s, color 0.12s;
+}
+.pv-seg button:last-child { border-right: none; }
+.pv-seg button:hover { background: var(--d-bg-alt); }
+.pv-seg button.active { background: var(--pv-accent, #334155); color: #fff; }
+
+.pv-btn {
+  font-family: var(--d-sans); font-size: 0.78rem; font-weight: 600;
+  border: 1px solid var(--d-rule-strong); background: #fff; color: var(--d-text);
+  border-radius: 7px; padding: 0.4rem 0.8rem; cursor: pointer; transition: background 0.12s, border-color 0.12s;
+}
+.pv-btn:hover { background: var(--d-bg-alt); border-color: var(--d-faint); }
+.pv-btn-accent { background: var(--pv-accent, #334155); color: #fff; border-color: transparent; }
+.pv-btn-accent:hover { filter: brightness(1.08); background: var(--pv-accent, #334155); }
+.pv-btn[disabled] { opacity: 0.45; cursor: default; }
+
+/* keyboard focus (WCAG 2.4.7) */
+.pv-seg button:focus-visible, .pv-btn:focus-visible, input[type="range"].pv-range:focus-visible,
+.pv-node:focus-visible, .pv-scm-node:focus-visible, .pv-rowcell:focus-visible {
+  outline: 2px solid var(--pv-accent, #2563eb); outline-offset: 2px;
+}
+.pv-node, .pv-scm-node, .pv-rowcell { cursor: pointer; }
+
+/* ---------- canvases + layout ---------- */
+.pv-svg { width: 100%; height: auto; display: block; background: var(--d-bg-alt); border-radius: 8px; }
+.pv-split { display: grid; grid-template-columns: 1.55fr 1fr; gap: 1.1rem; align-items: start; }
+.pv-split-even { display: grid; grid-template-columns: 1fr 1fr; gap: 1.1rem; align-items: start; }
+@media (max-width: 768px) { .pv-split, .pv-split-even { grid-template-columns: 1fr; } }
+
+.pv-note { font-size: 0.78rem; line-height: 1.5; color: var(--d-muted); margin: 0.75rem 0 0; }
+.pv-note, .pv-readout, .pv-mech { text-wrap: pretty; }
+.pv-note code, .pv-mech code { font-family: var(--d-mono); font-size: 0.85em; background: var(--d-bg-alt); border: 1px solid var(--d-rule); border-radius: 4px; padding: 0.04em 0.32em; }
+.pv-tag { font-size: 0.64rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; color: var(--d-muted); margin-bottom: 0.4rem; }
+
+.pv-readout {
+  font-size: 0.82rem; line-height: 1.5; color: var(--d-text);
+  background: var(--d-bg-alt); border: 1px solid var(--d-rule); border-left: 3px solid var(--pv-accent, #334155);
+  border-radius: 6px; padding: 0.55rem 0.75rem; margin-top: 0.7rem; min-height: 1.2rem;
+}
+.pv-readout b { color: var(--d-text-strong); }
+.pv-pill { font-size: 0.58rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #fff; padding: 0.12rem 0.45rem; border-radius: 999px; vertical-align: middle; margin-right: 0.4rem; }
+.pv-pill.entity { background: var(--tok-input); }
+.pv-pill.activity { background: var(--tok-output); }
+
+.pv-legend { display: flex; gap: 0.55rem 0.7rem; flex-wrap: wrap; font-size: 0.68rem; color: var(--d-muted); margin: 0.55rem 0 0.2rem; }
+.pv-legend span { display: inline-flex; align-items: center; gap: 0.35rem; }
+.pv-sw { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+.pv-sw.round { border-radius: 50%; }
+.pv-sw.entity { background: var(--tok-input-fill); }
+.pv-sw.activity { background: var(--tok-output-fill); }
+.pv-sw.numeric { background: var(--d-graph-hl); }
+.pv-sw.categorical { background: var(--tok-reason-fill); }
+.pv-sw.line { width: 16px; height: 0; border-top: 2px solid var(--d-graph-edge); border-radius: 0; }
+
+/* ---------- Stage 1: schema DAG ---------- */
+.pv-node rect { stroke: #fff; stroke-width: 2; transition: filter 0.12s, opacity 0.15s; }
+.pv-node text { font-family: var(--d-sans); font-weight: 600; fill: #fff; pointer-events: none; }
+.pv-node.entity rect { fill: var(--tok-input-fill); }
+.pv-node.activity rect { fill: var(--tok-output-fill); }
+.pv-node.dim { opacity: 0.24; }
+.pv-node.sel rect { stroke: var(--d-graph-hl); stroke-width: 3; }
+.pv-node.parent rect { stroke: var(--d-graph-hl); stroke-width: 3; stroke-dasharray: 4 2.5; }
+.pv-edge { stroke: var(--d-graph-edge); stroke-width: 1.9; stroke-linecap: round; fill: none; marker-end: url(#pv-arrow); transition: stroke 0.12s, stroke-width 0.12s, opacity 0.15s; }
+.pv-edge.hl { stroke: var(--d-graph-hl); stroke-width: 2.6; }
+.pv-edge.dim { opacity: 0.14; }
+.pv-genlabel { font-family: var(--d-sans); font-size: 10px; fill: var(--d-faint); text-transform: uppercase; letter-spacing: 0.04em; }
+
+.pv-card { border: 1px solid var(--d-rule); border-radius: 8px; overflow: hidden; font-size: 0.8rem; }
+.pv-card-hd { padding: 0.45rem 0.7rem; font-weight: 700; color: #fff; display: flex; justify-content: space-between; align-items: center; }
+.pv-card-hd.entity { background: var(--tok-input); }
+.pv-card-hd.activity { background: var(--tok-output); }
+.pv-card-hd .pv-rows { font-size: 0.66rem; font-weight: 600; opacity: 0.92; }
+.pv-card-body { padding: 0.55rem 0.7rem; }
+.pv-coltable { width: 100%; border-collapse: collapse; font-size: 0.74rem; }
+.pv-coltable td { padding: 0.18rem 0.3rem; border-bottom: 1px solid #f0f2f5; vertical-align: middle; }
+.pv-coltable tr:last-child td { border-bottom: none; }
+.pv-colname { font-family: var(--d-mono); color: var(--d-text-strong); }
+.pv-keytag { font-size: 0.58rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; padding: 0.05rem 0.35rem; border-radius: 4px; }
+.pv-keytag.pk { background: #fdecec; color: #b91c1c; border: 1px solid #f5c6c6; }
+.pv-keytag.fk { background: var(--tok-exo-soft); color: var(--tok-exo); border: 1px solid var(--tok-exo-line); }
+.pv-keytag.num { background: #eaf1fd; color: var(--d-graph-hl); border: 1px solid #c3d6f7; }
+.pv-keytag.cat { background: var(--tok-reason-soft); color: var(--tok-reason); border: 1px solid var(--tok-reason-line); }
+.pv-card-empty { color: var(--d-faint); font-size: 0.78rem; padding: 0.9rem 0.5rem 0.2rem; text-align: center; }
+/* schema summary - uniform aligned stat list */
+.pv-summary { display: flex; flex-direction: column; gap: 0.55rem; margin: 0.15rem 0 0; }
+.pv-srow { display: flex; align-items: baseline; gap: 0.6rem; }
+.pv-snum { font-size: 1.2rem; font-weight: 700; color: var(--pv-accent); font-variant-numeric: tabular-nums; min-width: 1.7rem; text-align: right; line-height: 1; }
+.pv-slbl { font-size: 0.68rem; color: var(--d-muted); text-transform: uppercase; letter-spacing: 0.03em; display: inline-flex; align-items: center; gap: 0.32rem; }
+.pv-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex: none; }
+.pv-dot.entity { background: var(--tok-input-fill); }
+.pv-dot.activity { background: var(--tok-output-fill); }
+
+/* ---------- Stage 2: bipartite HSBM ---------- */
+.pv-bip-split { display: grid; grid-template-columns: 4.2fr 1fr; gap: 0.9rem; align-items: stretch; }
+@media (max-width: 720px) { .pv-bip-split { grid-template-columns: 1fr; } .pv-bip-side { flex-direction: row; flex-wrap: wrap; } }
+.pv-bip-side { display: flex; flex-direction: column; justify-content: space-around; gap: 0.4rem; padding: 0.15rem 0; }
+.pv-bip-side .pv-stat { gap: 0.12rem; }
+.pv-bip-side .pv-stat-num { font-size: 1.45rem; }
+.pv-bip-side .pv-stat-lbl { font-size: 0.6rem; }
+.pv-bip-svg { width: 100%; height: auto; display: block; background: #fff; border: 1px solid var(--d-rule); border-radius: 8px; }
+/* light lines (stroke-opacity) but full-opacity arrowheads (marker fill) so the
+   direction reads clearly even in a dense bundle */
+.pv-bip-edge { stroke-width: 1.3; fill: none; stroke-opacity: 0.45; marker-end: url(#pv-bip-arrow); transition: opacity 0.15s, stroke-width 0.15s, stroke-opacity 0.15s; }
+.pv-bip-edge.dim { opacity: 0.08; }
+.pv-bip-edge.hl { stroke-opacity: 1; stroke-width: 2.6; }
+.pv-rowcell { stroke: #fff; stroke-width: 1.2; transition: opacity 0.15s; }
+.pv-rowcell.dim { opacity: 0.2; }
+.pv-rowlabel { font-family: var(--d-sans); font-size: 10px; }
+.pv-stat-grid { display: flex; gap: 1.4rem; flex-wrap: wrap; margin-top: 0.7rem; }
+.pv-stat { display: flex; flex-direction: column; gap: 0.1rem; }
+.pv-stat .pv-stat-num { font-size: 1.35rem; font-weight: 700; color: var(--tok-reason); font-variant-numeric: tabular-nums; line-height: 1; }
+.pv-stat .pv-stat-lbl { font-size: 0.66rem; color: var(--d-muted); text-transform: uppercase; letter-spacing: 0.03em; }
+
+/* ---------- Stage 3: temporal composer + SCM ---------- */
+.pv-ts-svg { width: 100%; height: auto; display: block; background: #fff; border: 1px solid var(--d-rule); border-radius: 8px; }
+.pv-ts-axis path, .pv-ts-axis line { stroke: var(--d-rule-strong); }
+.pv-ts-axis text { font-family: var(--d-sans); font-size: 9px; fill: var(--d-muted); }
+.pv-ts-grid line { stroke: #f0f1f4; }
+/* components: dashed + light; the composed signal: solid + bold */
+.pv-ts-comp { fill: none; stroke-width: 1.3; opacity: 0.6; stroke-dasharray: 4 3; }
+.pv-ts-trend { stroke: var(--d-graph-hl); }
+.pv-ts-cycle { stroke: var(--tok-output); }
+.pv-ts-noise { stroke: var(--d-faint); }
+.pv-ts-sum { fill: none; stroke: var(--tok-exo); stroke-width: 2.8; }
+.pv-ts-legend { display: flex; gap: 0.6rem 0.7rem; flex-wrap: wrap; font-size: 0.67rem; color: var(--d-muted); margin-top: 0.45rem; align-items: center; }
+.pv-ts-legend .dash { display: inline-block; width: 16px; border-top: 2px dashed currentColor; vertical-align: middle; margin-right: 4px; }
+.pv-ts-legend .solid { display: inline-block; width: 16px; border-top: 3px solid currentColor; vertical-align: middle; margin-right: 4px; }
+.pv-ts-legend .k-trend { color: var(--d-graph-hl); }
+.pv-ts-legend .k-cycle { color: var(--tok-output); }
+.pv-ts-legend .k-noise { color: var(--d-faint); }
+.pv-ts-legend .k-sum { color: var(--tok-exo); font-weight: 700; }
+
+.pv-scm-svg { width: 100%; height: auto; display: block; background: var(--d-bg-alt); border-radius: 8px; }
+.pv-scm-node circle { stroke: #fff; stroke-width: 2; transition: opacity 0.15s, filter 0.15s; }
+.pv-scm-node.source circle { fill: var(--tok-exo-fill); }
+.pv-scm-node.numeric circle { fill: var(--d-graph-hl); }
+.pv-scm-node.categorical circle { fill: var(--tok-reason-fill); }
+.pv-scm-node.latent circle { fill: #b7c0cc; }
+.pv-scm-node.col circle { stroke: #334155; stroke-width: 3; }
+.pv-scm-node text { font-family: var(--d-mono); font-size: 9px; font-weight: 600; fill: #fff; pointer-events: none; }
+.pv-scm-node.latent text { fill: #46505c; }
+.pv-scm-node.dim { opacity: 0.24; }
+.pv-scm-node.active circle { filter: drop-shadow(0 0 4px rgba(217, 119, 6, 0.85)); }
+.pv-scm-edge { stroke: var(--d-graph-edge); stroke-width: 1.8; stroke-linecap: round; fill: none; marker-end: url(#pv-scm-arrow); transition: stroke 0.15s, stroke-width 0.15s, opacity 0.15s; }
+.pv-scm-edge.hl { stroke: var(--tok-exo); stroke-width: 2.4; }
+.pv-scm-edge.dim { opacity: 0.12; }
+.pv-mech {
+  font-size: 0.78rem; line-height: 1.55; color: var(--d-text);
+  background: var(--d-bg-alt); border: 1px solid var(--d-rule); border-left: 3px solid var(--tok-exo);
+  border-radius: 6px; padding: 0.6rem 0.75rem; margin-top: 0.4rem;
+}
+.pv-mech .pv-formula { font-family: var(--d-mono); font-size: 0.72rem; background: #fff; border: 1px solid var(--d-rule); border-radius: 5px; padding: 0.4rem 0.5rem; margin: 0.4rem 0; display: block; overflow-x: auto; white-space: nowrap; }
+.pv-mech .hl-parent { color: var(--d-graph-hl); font-weight: 700; }
+.pv-mech .hl-noise { color: var(--tok-reason); font-weight: 700; }
+.pv-mech .hl-exo { color: var(--tok-exo); font-weight: 700; }
+.pv-val-chip { font-family: var(--d-mono); font-size: 0.72rem; padding: 0.1rem 0.4rem; border-radius: 5px; background: #fff; border: 1px solid var(--d-rule-strong); }
