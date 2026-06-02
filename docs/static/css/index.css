@@ -21,12 +21,20 @@ body {
   font-family: 'Google Sans', sans-serif;
 }
 
+/* Use the Distill sans font (Libre Franklin) for the hero so the title,
+   authors, affiliations and links match the rest of the page. */
 .publication-title {
-  font-family: 'Google Sans', sans-serif;
+  font-family: var(--d-sans);
+  letter-spacing: -0.02em;
 }
 
 .publication-authors {
-  font-family: 'Google Sans', sans-serif;
+  font-family: var(--d-sans);
+}
+
+.hero .button,
+.publication-links .button {
+  font-family: var(--d-sans);
 }
 
 .publication-venue {
