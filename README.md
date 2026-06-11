@@ -119,7 +119,7 @@ $ pixi run python scripts/synthetic_gen.py \
 
 | Argument | Description |
 |----------|-------------|
-| `--seed_offset` | Seed offset for database generation. DBs will be named `rel-synthetic-<seed>`. |
+| `--seed_offset` | Seed offset for database generation. DBs will be named `plurel-<seed>` (override with `--db_prefix`). |
 | `--num_dbs` | Number of databases to generate. |
 | `--num_proc` | Number of parallel processes (default: number of CPU cores). |
 | `--preprocess` | Run preprocessing and embedding steps. Omit to skip. |

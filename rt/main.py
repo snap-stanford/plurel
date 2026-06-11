@@ -17,6 +17,7 @@ from tqdm.auto import tqdm
 
 from rt.data import RelationalDataset
 from rt.model import RelationalTransformer
+from rt.tasks import is_synthetic_db_name
 
 
 def seed_everything(seed=42):
@@ -148,11 +149,11 @@ def main(
     eval_loaders = {}
     for db_name, table_name, target_column, columns_to_drop in eval_tasks:
         for split in eval_splits:
-            if "synthetic" in db_name and split == "test":
+            if is_synthetic_db_name(db_name) and split == "test":
                 continue
             eval_dataset = RelationalDataset(
                 tasks=[(db_name, table_name, target_column, split, columns_to_drop)],
-                batch_size=eval_batch_size if "synthetic" not in db_name else 10,
+                batch_size=eval_batch_size if not is_synthetic_db_name(db_name) else 10,
                 rank=rank,
                 world_size=world_size,
                 ctx_len=ctx_len,
@@ -255,7 +256,7 @@ def main(
                 losses = []
                 eval_load_times = []
                 eval_loader = eval_loaders[(db_name, table_name, split)]
-                _max_eval_steps = max_eval_steps if "synthetic" not in db_name else 1
+                _max_eval_steps = max_eval_steps if not is_synthetic_db_name(db_name) else 1
                 pbar = tqdm(
                     total=(
                         min(_max_eval_steps, len(eval_loader))
@@ -282,7 +283,7 @@ def main(
                         eval_load_times.append(eval_load_time)
 
                     true_batch_size = batch.pop("true_batch_size")
-                    _eval_batch_size = eval_batch_size if "synthetic" not in db_name else 10
+                    _eval_batch_size = eval_batch_size if not is_synthetic_db_name(db_name) else 10
                     if true_batch_size < _eval_batch_size:
                         continue
                     for k in batch:
@@ -334,7 +335,7 @@ def main(
                     loss = sum(losses) / len(losses)
                     k = f"loss/{db_name}/{table_name}/{split}"
                     avg_eval_load_time = sum(eval_load_times) / len(eval_load_times)
-                    if "synthetic" in db_name:
+                    if is_synthetic_db_name(db_name):
                         synthetic_db_losses[split].append(loss)
                     else:
                         wandb.log(
@@ -392,12 +393,12 @@ def main(
                     "only 'val' split was supposed to be used for consistency. there are no separate 'val/'test' splits"
                 )
                 for split, losses in synthetic_db_losses.items():
-                    k = f"loss/rel-synthetic/{split}"
-                    print(f"split={split}, rel-synthetic losses={losses}")
+                    k = f"loss/plurel/{split}"
+                    print(f"split={split}, plurel losses={losses}")
                     metric = np.mean(losses)
                     wandb.log({k: metric}, step=steps)
                     print(f"\nstep={steps}, \t{k}: {metric}")
-                    metrics[split][("rel-synthetic-loss", "")] = metric
+                    metrics[split][("plurel-loss", "")] = metric
 
         return metrics
 

@@ -3,6 +3,7 @@ publish.sh
 run-tests.sh
 test-pypi-package.sh
 .publish-venv/
+misc/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

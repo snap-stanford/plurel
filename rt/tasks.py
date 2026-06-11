@@ -5,6 +5,17 @@ import numpy as np
 from plurel import Config, SyntheticDataset
 from plurel.utils import set_random_seed
 
+# Default name prefix for generated synthetic DBs: <DB_PREFIX>-<seed>.
+DB_PREFIX = "plurel"
+
+
+def is_synthetic_db_name(db_name: str) -> bool:
+    """True if db_name refers to a generated synthetic DB (as opposed to a
+    real relbench DB). Recognizes the current ``plurel-*`` naming and the
+    legacy ``rel-synthetic-*`` naming so previously cached DBs keep working.
+    """
+    return db_name.startswith(f"{DB_PREFIX}-") or "synthetic" in db_name
+
 
 def is_valid_db(db):
     # invalid if any table contains > 5 fk cols
@@ -31,12 +42,12 @@ def get_tasks_info(db, db_name, table_name):
     return {"clf": clf_tasks, "reg": reg_tasks}
 
 
-def get_clf_reg_tasks(seeds, max_db_count, per_db_task_limit=None):
+def get_clf_reg_tasks(seeds, max_db_count, per_db_task_limit=None, db_prefix=DB_PREFIX):
     all_db_clf_tasks = []
     all_db_reg_tasks = []
     db_count = 0
     for seed in seeds:
-        db_name = f"rel-synthetic-{seed}"
+        db_name = f"{db_prefix}-{seed}"
         dataset = SyntheticDataset(
             seed=seed,
             config=Config(cache_dir=Path(f"~/.cache/relbench/{db_name}").expanduser()),
@@ -73,13 +84,14 @@ def get_clf_reg_tasks(seeds, max_db_count, per_db_task_limit=None):
     return all_db_clf_tasks, all_db_reg_tasks
 
 
-def generate_rel_synthetic_tasks(
+def generate_plurel_tasks(
     offset: int,
     num_dbs: int,
     num_train_dbs: int,
     num_test_dbs: int,
     skip_reg_tasks: bool = False,
     skip_clf_tasks: bool = False,
+    db_prefix: str = DB_PREFIX,
 ):
     set_random_seed(0)
     seeds = [idx + offset for idx in range(num_dbs)]
@@ -94,11 +106,11 @@ def generate_rel_synthetic_tasks(
     train_seeds = seeds[2 * num_test_dbs :]
 
     test_autocomplete_clf_tasks, test_autocomplete_reg_tasks = get_clf_reg_tasks(
-        seeds=test_seeds, max_db_count=num_test_dbs, per_db_task_limit=10
+        seeds=test_seeds, max_db_count=num_test_dbs, per_db_task_limit=10, db_prefix=db_prefix
     )
 
     train_autocomplete_clf_tasks, train_autocomplete_reg_tasks = get_clf_reg_tasks(
-        seeds=train_seeds, max_db_count=num_train_dbs
+        seeds=train_seeds, max_db_count=num_train_dbs, db_prefix=db_prefix
     )
 
     if skip_clf_tasks:

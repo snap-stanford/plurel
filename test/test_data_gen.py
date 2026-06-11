@@ -9,7 +9,7 @@ import pytest
 from plurel.config import Choices, Config, DatabaseParams
 from plurel.dataset import SyntheticDataset
 from plurel.utils import set_random_seed
-from rt.tasks import get_tasks_info, is_valid_db
+from rt.tasks import DB_PREFIX, get_tasks_info, is_valid_db
 
 # All tests share ~/scratch/ state via module-scoped fixtures, so they
 # must run on the same xdist worker to avoid races.
@@ -45,7 +45,7 @@ PRE_OUTPUT_FILES = [
 
 
 def _db_name(seed: int) -> str:
-    return f"rel-synthetic-test-t{TAG}-s{seed}"
+    return f"{DB_PREFIX}-test-t{TAG}-s{seed}"
 
 
 def _all_db_dirs():
@@ -200,7 +200,7 @@ def test_train_test_split(generated_dbs):
     for task in test_clf + test_reg + train_clf + train_reg:
         assert len(task) == 4
         db_name, table_name, col_name, extra = task
-        assert db_name.startswith("rel-synthetic-test-t")
+        assert db_name.startswith(f"{DB_PREFIX}-test-t")
         assert isinstance(table_name, str)
         assert "feature" in col_name
         assert extra == []
