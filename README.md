@@ -178,6 +178,18 @@ $ ls ~/scratch/rt_hf_ckpts
 synthetic-pretrain_rdb_1024_size_4b.pt
 ```
 
+The same Hub repo also hosts the checkpoints behind the PluRel rows on the
+[RelBench leaderboard](https://relbench.stanford.edu/leaderboard/):
+
+- `cntd-pretrain_<dataset>_<task>.pt`: synthetic+real continued pretraining from
+  `synthetic-pretrain_rdb_1024_size_4b.pt`, one leave-one-dataset-out run per RelBench
+  dataset (including rel-event), per-task best checkpoint selected by val NMAE
+  (MAE / train-split std) for regression. These produce the "PluRel | synthetic + real"
+  zero-shot cells.
+- `leaderboard-finetuned/finetune_<dataset>_<task>.pt`: fine-tuned per task from the
+  matching `cntd-pretrain` checkpoint. These produce the "PluRel | pretrained +
+  fine-tuned" row. All leaderboard numbers are full official test split.
+
 ## Pretraining Experiments
 
 - Baseline (real-world) pretraining on relbench datasets with a randomly initialized relational-transformer (RT) model.
