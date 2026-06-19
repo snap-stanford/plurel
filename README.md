@@ -17,6 +17,10 @@ This repository provides a reference implementation for the paper [PluRel: Synth
 The architecture and training code is an improved version of [the original implementation](https://github.com/snap-stanford/relational-transformer)
 for the ICLR 2026 paper [Relational Transformer: Toward Zero-Shot Foundation Models for Relational Data](https://arxiv.org/abs/2510.06377).
 
+## Latest Updates
+
+- [04/2026] PluRel is accepted to **ICML 2026!**
+
 ## Overview
 
 PluRel is a framework for synthesizing diverse multi-tabular relational databases using Structural Causal Models (SCMs). This repository provides:
