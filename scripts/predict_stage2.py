@@ -20,16 +20,16 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-
 from relbench.base import TaskType
-from relbench.load import load_task
 from relbench.hf import CORE_REPO
 from relbench.leaderboard import write_prediction_table
+from relbench.load import load_task
 
 PRE = Path(os.environ.get("RT_PRE", Path(os.environ["HOME"]) / "scratch" / "pre"))
 # relbench-1.x task parquets (train split target stats -> regression denormalization).
-RELBENCH_CACHE = Path(os.environ.get("RELBENCH_CACHE",
-                                     Path(os.environ["HOME"]) / ".cache" / "relbench"))
+RELBENCH_CACHE = Path(
+    os.environ.get("RELBENCH_CACHE", Path(os.environ["HOME"]) / ".cache" / "relbench")
+)
 
 
 def _entity_offset(db, entity_table):
@@ -57,7 +57,7 @@ def main(db, table, pred_npz, out_dir):
 
     off = _entity_offset(db, entity_table)
     z = np.load(pred_npz, allow_pickle=True)
-    entity_id = (z["entity_node_idx"].astype(np.int64) - off)
+    entity_id = z["entity_node_idx"].astype(np.int64) - off
     ts = z["timestamp"].astype(np.int64)
     pvals = z["pred"].astype(np.float64)
 
@@ -71,13 +71,17 @@ def main(db, table, pred_npz, out_dir):
 
     core_ts = (pd.to_datetime(masked[tc]).astype("int64") // 10**9).to_numpy()
     core_ent = masked[ec].astype(np.int64).to_numpy()
-    full = np.array([key_to_pred.get((int(e), int(t)), np.nan)
-                     for e, t in zip(core_ent, core_ts)], dtype=np.float64)
+    full = np.array(
+        [key_to_pred.get((int(e), int(t)), np.nan) for e, t in zip(core_ent, core_ts)],
+        dtype=np.float64,
+    )
 
     covered = ~np.isnan(full)
     if not covered.all():
-        print(f"[stage2 WARN] {int((~covered).sum())}/{n} core test rows unmatched "
-              f"(entity_table={entity_table}, off={off})")
+        print(
+            f"[stage2 WARN] {int((~covered).sum())}/{n} core test rows unmatched "
+            f"(entity_table={entity_table}, off={off})"
+        )
 
     out_csv = Path(out_dir) / f"{db}__{table}.csv"
     write_prediction_table(task, full, out_csv)

@@ -31,7 +31,7 @@ import torch
 # (slower per batch but starts immediately and never recompiles) — set for big test sets.
 if os.environ.get("RT_EAGER") == "1":
     _real_compile = torch.compile
-    torch.compile = lambda fn=None, *a, **k: (fn if fn is not None else (lambda f: f))
+    torch.compile = lambda fn=None, *a, **k: fn if fn is not None else (lambda f: f)
 else:
     torch._dynamo.config.cache_size_limit = 64
     torch._dynamo.config.accumulated_cache_size_limit = 256
@@ -43,8 +43,15 @@ if os.environ.get("RT_EAGER") == "1":
     torch.compile = _real_compile  # restore after rt.model captured the no-op
 
 REG_TABLES = {
-    "item-sales", "user-ltv", "item-ltv", "post-votes", "site-success",
-    "study-adverse", "user-attendance", "driver-position", "ad-ctr",
+    "item-sales",
+    "user-ltv",
+    "item-ltv",
+    "post-votes",
+    "site-success",
+    "study-adverse",
+    "user-attendance",
+    "driver-position",
+    "ad-ctr",
 }
 
 
@@ -56,28 +63,53 @@ def _node_idx_offset(db, table, split):
 
 
 @torch.inference_mode()
-def main(db, table, target, ckpt, out, *, split="test", batch_size=32, num_workers=8,
-         max_bfs_width=256, embedding_model="all-MiniLM-L12-v2", d_text=384, seq_len=1024,
-         num_blocks=12, d_model=256, num_heads=8, d_ff=1024, device="cuda"):
+def main(
+    db,
+    table,
+    target,
+    ckpt,
+    out,
+    *,
+    split="test",
+    batch_size=32,
+    num_workers=8,
+    max_bfs_width=256,
+    embedding_model="all-MiniLM-L12-v2",
+    d_text=384,
+    seq_len=1024,
+    num_blocks=12,
+    d_model=256,
+    num_heads=8,
+    d_ff=1024,
+    device="cuda",
+):
     task_type = "reg" if table in REG_TABLES else "clf"
 
-    net = RelationalTransformer(num_blocks=num_blocks, d_model=d_model, d_text=d_text,
-                                num_heads=num_heads, d_ff=d_ff)
+    net = RelationalTransformer(
+        num_blocks=num_blocks, d_model=d_model, d_text=d_text, num_heads=num_heads, d_ff=d_ff
+    )
     net.load_state_dict(torch.load(Path(ckpt).expanduser(), map_location="cpu"))
     net = net.to(device).to(torch.bfloat16).eval()
 
     # RT uses seq_len=; PluRel renamed it to ctx_len=. Support both.
     _ds_common = dict(
-        tasks=[(db, table, target, split, [])], batch_size=batch_size,
-        rank=0, world_size=1, max_bfs_width=max_bfs_width, embedding_model=embedding_model,
-        d_text=d_text, seed=0)
+        tasks=[(db, table, target, split, [])],
+        batch_size=batch_size,
+        rank=0,
+        world_size=1,
+        max_bfs_width=max_bfs_width,
+        embedding_model=embedding_model,
+        d_text=d_text,
+        seed=0,
+    )
     try:
         ds = RelationalDataset(seq_len=seq_len, **_ds_common)
     except TypeError:
         ds = RelationalDataset(ctx_len=seq_len, **_ds_common)
     ds.sampler.shuffle_py(0)
-    loader = torch.utils.data.DataLoader(ds, batch_size=None, num_workers=num_workers,
-                                         pin_memory=True, in_order=True)
+    loader = torch.utils.data.DataLoader(
+        ds, batch_size=None, num_workers=num_workers, pin_memory=True, in_order=True
+    )
 
     n_batches = len(loader)
     t0 = time.time()
@@ -92,8 +124,10 @@ def main(db, table, target, ckpt, out, *, split="test", batch_size=32, num_worke
         _, yhat = net(batch)
         if bi == 0 or (bi + 1) % 50 == 0 or bi + 1 == n_batches:
             el = time.time() - t0
-            print(f"  [{db}/{table}] batch {bi+1}/{n_batches} ({el:.0f}s, {el/(bi+1):.2f}s/batch)",
-                  flush=True)
+            print(
+                f"  [{db}/{table}] batch {bi + 1}/{n_batches} ({el:.0f}s, {el / (bi + 1):.2f}s/batch)",
+                flush=True,
+            )
         is_t = batch["is_targets"].bool()
         if task_type == "clf":
             v = torch.sigmoid(yhat["boolean"][is_t].float()).flatten()
@@ -111,8 +145,13 @@ def main(db, table, target, ckpt, out, *, split="test", batch_size=32, num_worke
     timestamp = np.concatenate(tss).astype(np.int64)
     pred = np.concatenate(vals).astype(np.float64)
     Path(out).parent.mkdir(parents=True, exist_ok=True)
-    np.savez(out, entity_node_idx=entity_node_idx, timestamp=timestamp, pred=pred,
-             task_type=np.array(task_type))
+    np.savez(
+        out,
+        entity_node_idx=entity_node_idx,
+        timestamp=timestamp,
+        pred=pred,
+        task_type=np.array(task_type),
+    )
     print(f"[stage1 OK] {db}/{table} ({task_type}): {len(pred)} preds -> {out}")
     print(f"  pred min={pred.min():.4g} max={pred.max():.4g} mean={pred.mean():.4g}")
 
@@ -125,5 +164,13 @@ if __name__ == "__main__":
     p.add_argument("--num_workers", type=int, default=8)
     p.add_argument("--device", default="cuda")
     a = p.parse_args()
-    main(a.db, a.table, a.target, a.ckpt, a.out,
-         batch_size=a.batch_size, num_workers=a.num_workers, device=a.device)
+    main(
+        a.db,
+        a.table,
+        a.target,
+        a.ckpt,
+        a.out,
+        batch_size=a.batch_size,
+        num_workers=a.num_workers,
+        device=a.device,
+    )
