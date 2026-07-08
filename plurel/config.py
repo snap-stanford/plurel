@@ -50,6 +50,12 @@ class Choices:
         elif self.kind == "set":
             return np.random.choice(self.value, size=size, replace=replace)
 
+    def sample_log_uniform(self, size: int | None = None):
+        if self.kind == "range" and type(self.value[0]) == float:
+            low, high = math.log(self.value[0]), math.log(self.value[1])
+            return np.exp(np.random.uniform(low=low, high=high, size=size))
+        raise ValueError("log-uniform sampling requires a float 'range' with positive bounds")
+
     def sample_pl(self, exponent: float = 1, size: int | None = None, replace: bool = False):
         if self.kind == "range":
             if type(self.value[0]) == int:
@@ -174,6 +180,9 @@ class SCMParams:
     )
     node_noise_alpha_choices: Choices = Choices(kind="range", value=[0.5, 5.0])
     node_noise_beta_choices: Choices = Choices(kind="range", value=[0.5, 5.0])
+    node_noise_type_choices: Choices = Choices(kind="set", value=["beta", "gaussian"])
+    node_noise_std_choices: Choices = Choices(kind="range", value=[1e-4, 0.3])
+    pre_sample_noise_std_choices: Choices = Choices(kind="set", value=[True, False])
 
     bi_hsbm_levels_choices: Choices = Choices(kind="range", value=[1, 5])
     bi_hsbm_clusters_per_level_choices: Choices = Choices(kind="range", value=[1, 3])

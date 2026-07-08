@@ -321,6 +321,49 @@ AGGREGATION_REGISTRY: dict[str, callable] = {
 }
 
 
+class NoiseGenerator:
+    """Additive per-node noise, sampled at shape (num_rows, emb_dim)."""
+
+    def sample(self, num_rows: int, emb_dim: int) -> torch.Tensor:
+        raise NotImplementedError
+
+
+class GaussianNoiseGenerator(NoiseGenerator):
+    def __init__(self, scm_params: SCMParams, std: float | torch.Tensor):
+        self.std = std
+
+    def sample(self, num_rows, emb_dim):
+        return torch.randn(num_rows, emb_dim) * self.std
+
+
+class BetaNoiseGenerator(NoiseGenerator):
+    def __init__(self, scm_params: SCMParams, std: float | torch.Tensor):
+        alpha = float(scm_params.node_noise_alpha_choices.sample_uniform())
+        beta = float(scm_params.node_noise_beta_choices.sample_uniform())
+        self.dist = Beta(torch.tensor([alpha]), torch.tensor([beta]))
+        self.std = std
+
+    def sample(self, num_rows, emb_dim):
+        return self.dist.sample(sample_shape=(num_rows, emb_dim)).squeeze(-1) * self.std
+
+
+NOISE_GENERATOR_REGISTRY: dict[str, type[NoiseGenerator]] = {
+    "beta": BetaNoiseGenerator,
+    "gaussian": GaussianNoiseGenerator,
+}
+
+
+def make_noise_generator(scm_params: SCMParams, emb_dim: int) -> NoiseGenerator:
+    noise_type = scm_params.node_noise_type_choices.sample_uniform()
+    base_std = float(scm_params.node_noise_std_choices.sample_log_uniform())
+    per_dim = (
+        torch.randn(1, emb_dim).abs()
+        if scm_params.pre_sample_noise_std_choices.sample_uniform()
+        else 1.0
+    )
+    return NOISE_GENERATOR_REGISTRY[noise_type](scm_params=scm_params, std=base_std * per_dim)
+
+
 class SCM:
     def __init__(
         self,
@@ -421,10 +464,8 @@ class SCM:
                 )
                 self.dag.graph.nodes[node]["num_categories"] = num_categories
 
-            alpha = float(self.scm_params.node_noise_alpha_choices.sample_uniform())
-            beta = float(self.scm_params.node_noise_beta_choices.sample_uniform())
-            self.dag.graph.nodes[node]["noise_dist"] = Beta(
-                torch.tensor([alpha]), torch.tensor([beta])
+            self.dag.graph.nodes[node]["noise_generator"] = make_noise_generator(
+                scm_params=self.scm_params, emb_dim=self.strategy.mlp_emb_dim
             )
             self.dag.graph.nodes[node]["propagation_agg"] = (
                 self.scm_params.propagation_agg_choices.sample_uniform()
@@ -488,9 +529,8 @@ class SCM:
         for node in self.dag.graph.nodes:
             if node in self.source_nodes:
                 continue
-            noise_dist = self.dag.graph.nodes[node]["noise_dist"]
-            node_noise[node] = (
-                noise_dist.sample(sample_shape=(self.num_rows, emb_dim)).squeeze(-1) / emb_dim
+            node_noise[node] = self.dag.graph.nodes[node]["noise_generator"].sample(
+                self.num_rows, emb_dim
             )
 
         foreign_table_names = list(self.fkey_col_to_pkey_table.values())
