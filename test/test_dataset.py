@@ -28,6 +28,29 @@ def test_dataset(seed):
 
 
 @pytest.mark.parametrize("seed", list(range(20)))
+def test_single_table_regime(seed):
+    """num_tables=1 yields a single, non-temporal Entity table (no `date` col).
+
+    This is the TabICL-comparable IID tabular regime; temporal columns are an
+    opt-in feature, so a lone table must not be tagged Activity.
+    """
+    config = Config(
+        database_params=DatabaseParams(
+            num_tables_choices=Choices(kind="range", value=[1, 1]),
+            num_rows_entity_table_choices=Choices(kind="range", value=[40, 80]),
+        )
+    )
+    dataset = SyntheticDataset(seed=seed, config=config)
+    db = dataset.make_db()
+    assert len(db.table_dict) == 1
+    (table,) = db.table_dict.values()
+    assert table.time_col is None
+    assert "date" not in table.df.columns
+    # at least the primary key plus one feature column
+    assert len(table.df.columns) >= 2
+
+
+@pytest.mark.parametrize("seed", list(range(20)))
 def test_dataset_with_sql_file(seed, schema_sql):
     config = Config(
         database_params=DatabaseParams(

@@ -89,11 +89,18 @@ class SyntheticDataset(Dataset):
         elif num_tables:
             table_relationships = self._get_random_dag_table_relationships(num_tables=num_tables)
 
-        activity_tables = [
-            table
-            for table in table_relationships.nodes
-            if table_relationships.out_degree(table) == 0
-        ]
+        # A lone table is both root and leaf; out_degree == 0 would otherwise tag
+        # it Activity and force a `date` column. In the single-table regime we
+        # want a clean, non-temporal Entity table (temporal columns are opt-in),
+        # so no table is Activity when there is only one.
+        if table_relationships.number_of_nodes() > 1:
+            activity_tables = [
+                table
+                for table in table_relationships.nodes
+                if table_relationships.out_degree(table) == 0
+            ]
+        else:
+            activity_tables = []
         for table in table_relationships.nodes:
             if table in activity_tables:
                 table_type = TableType.Activity
