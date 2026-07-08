@@ -9,6 +9,34 @@ from sklearn.tree import DecisionTreeRegressor
 from plurel.config import RandomFunctionActivation, SCMParams
 
 
+def _standard_weight_init(W: torch.Tensor, scm_params: SCMParams) -> None:
+    init_fn = scm_params.initialization_choices.sample_uniform()
+    init_fn(W)
+    # Bernoulli sparsity mask with variance compensation; density=1.0 => identity
+    density = float(scm_params.mlp_weight_density_choices.sample_uniform())
+    mask = torch.bernoulli(torch.full_like(W, density))
+    W.data *= mask / max(density, 1e-6)
+
+
+def _block_dropout_weight_init(W: torch.Tensor, scm_params: SCMParams) -> None:
+    torch.nn.init.zeros_(W)
+    init_std = float(scm_params.mlp_init_std_choices.sample_log_uniform())
+    n_blocks = int(np.random.randint(1, math.ceil(math.sqrt(min(W.shape))) + 1))
+    block_size = [dim // n_blocks for dim in W.shape]
+    keep_prob = (n_blocks * block_size[0] * block_size[1]) / W.numel()
+    scale = scm_params.scale_init_std_by_dropout_choices.sample_uniform()
+    std = init_std / (keep_prob**0.5 if scale else 1)
+    for b in range(n_blocks):
+        block_slice = tuple(slice(bs * b, bs * (b + 1)) for bs in block_size)
+        torch.nn.init.normal_(W[block_slice], std=std)
+
+
+WEIGHT_INIT_REGISTRY: dict[str, callable] = {
+    "standard": _standard_weight_init,
+    "block_dropout": _block_dropout_weight_init,
+}
+
+
 def _build_tree_regressor(tree_model: str, max_depth: int, n_estimators: int):
     if tree_model == "decision_tree":
         return DecisionTreeRegressor(max_depth=max_depth, splitter="random")
@@ -69,12 +97,8 @@ class MLPMechanism(Mechanism):
         dims = [in_dim] + [hid_dim] * (num_layers - 1) + [out_dim]
         self.weights = [torch.empty(dims[i], dims[i + 1]) for i in range(num_layers)]
         for W in self.weights:
-            init_fn = scm_params.initialization_choices.sample_uniform()
-            init_fn(W)
-            # Bernoulli sparsity mask with variance compensation; density=1.0 => identity
-            density = float(scm_params.mlp_weight_density_choices.sample_uniform())
-            mask = torch.bernoulli(torch.full_like(W, density))
-            W.data *= mask / max(density, 1e-6)
+            init_strategy = scm_params.weight_init_choices.sample_uniform()
+            WEIGHT_INIT_REGISTRY[init_strategy](W, scm_params)
         self.act_scales = []
         for _ in range(num_layers - 1):
             act_fn = scm_params.activation_choices.sample_uniform()

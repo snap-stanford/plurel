@@ -211,6 +211,9 @@ class SCMParams:
     mlp_emb_dim: int = 32
     mlp_num_layers_choices: Choices = Choices(kind="range", value=[2, 4])
     mlp_weight_density_choices: Choices = Choices(kind="range", value=[0.3, 1.0])
+    weight_init_choices: Choices = Choices(kind="set", value=["standard", "block_dropout"])
+    mlp_init_std_choices: Choices = Choices(kind="range", value=[0.01, 10.0])
+    scale_init_std_by_dropout_choices: Choices = Choices(kind="set", value=[True, False])
     mechanism_type_choices: Choices = Choices(kind="set", value=["mlp", "tree"])
     tree_model_choices: Choices = Choices(
         kind="set", value=["decision_tree", "extra_trees", "random_forest"]
