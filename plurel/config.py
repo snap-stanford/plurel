@@ -223,6 +223,7 @@ class SCMParams:
     source_beta_alpha_choices: Choices = Choices(kind="range", value=[0.5, 5.0])
     source_beta_beta_choices: Choices = Choices(kind="range", value=[0.5, 5.0])
     propagation_mode_choices: Choices = Choices(kind="set", value=["type_eager", "type_lazy"])
+    cat_boundary_mode_choices: Choices = Choices(kind="set", value=["rank", "value"])
     cat_label_permute_prob_choices: Choices = Choices(kind="range", value=[0.3, 1.0])
     cat_label_reverse_prob_choices: Choices = Choices(kind="range", value=[0.2, 0.8])
 

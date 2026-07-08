@@ -320,6 +320,11 @@ AGGREGATION_REGISTRY: dict[str, callable] = {
     "logexp": lambda s: torch.logsumexp(s, dim=0),
 }
 
+CATEGORICAL_BOUNDARY_REGISTRY: dict[str, callable] = {
+    "rank": lambda values, k: values[torch.randint(0, len(values), (k,))],
+    "value": lambda values, k: torch.randn(k),
+}
+
 
 class NoiseGenerator:
     """Additive per-node noise, sampled at shape (num_rows, emb_dim)."""
@@ -632,10 +637,9 @@ class SCM:
             col_name = self.dag.graph.nodes[node]["col_name"]
             num_categories = self.dag.graph.nodes[node]["num_categories"]
             col_values = torch.tensor(self.df[col_name].values, dtype=torch.float32)
-            # Sample random boundaries from the data itself
-            boundary_indices = torch.randint(0, len(col_values), (num_categories - 1,))
-            boundaries = col_values[boundary_indices]
-            # Count how many boundaries each value exceeds → class label in [0, num_categories-1]
+            col_values = (col_values - col_values.mean()) / col_values.std().clamp_min(1e-8)
+            mode = self.scm_params.cat_boundary_mode_choices.sample_uniform()
+            boundaries = CATEGORICAL_BOUNDARY_REGISTRY[mode](col_values, num_categories - 1)
             classes = (col_values.unsqueeze(-1) > boundaries.unsqueeze(0)).sum(dim=1)
             # randomly permute class labels to break ordinality
             permute_prob = self.scm_params.cat_label_permute_prob_choices.sample_uniform()
