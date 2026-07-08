@@ -63,8 +63,6 @@ class TSSourceGenFactory(SourceGenFactory):
             if table_type == TableType.Activity
             else scm_params.entity_table_ts_cycle_scale
         )
-        # AR is zeroed for entity tables so their rows stay i.i.d.; only activity
-        # tables (which are time-ordered) carry serial correlation.
         ar_rho = (
             scm_params.ts_ar_rho_choices.sample_uniform()
             if table_type == TableType.Activity

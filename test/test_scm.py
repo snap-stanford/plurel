@@ -54,7 +54,6 @@ def test_ts_source_entity_rows_are_uncorrelated():
     gen = SOURCE_GEN_REGISTRY["ts"].make_numerical(
         scm_params=scm_params, num_rows=100, table_type=TableType.Entity
     )
-    # widen the value range so the noise term isn't clamped to a constant
     gen.min_value, gen.max_value = -1e6, 1e6
     gen.noise_scale = 1.0
     x = np.array([gen.get_value(row_idx=i) for i in range(5000)])
