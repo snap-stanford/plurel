@@ -73,7 +73,7 @@ class RandomFunctionActivation:
     Params (n components, amplitudes, freqs, phases) are sampled once at
     construction so the activation is a deterministic function of its input.
     Each MLP layer that picks this activation gets a fresh instance — see
-    `MLP.__init__` — which keeps SCMs deterministic functions of their
+    `MLPMechanism.__init__` — which keeps SCMs deterministic functions of their
     inputs and decouples per-row outputs from how rows are batched.
     """
 
@@ -202,6 +202,12 @@ class SCMParams:
     mlp_emb_dim: int = 32
     mlp_num_layers_choices: Choices = Choices(kind="range", value=[2, 4])
     mlp_weight_density_choices: Choices = Choices(kind="range", value=[0.3, 1.0])
+    mechanism_type_choices: Choices = Choices(kind="set", value=["mlp", "tree"])
+    tree_model_choices: Choices = Choices(
+        kind="set", value=["decision_tree", "extra_trees", "random_forest"]
+    )
+    tree_depth_lambda: float = 0.5
+    tree_n_estimators_lambda: float = 0.5
     source_gen_type_choices: Choices = Choices(
         kind="set", value=["ts", "uniform", "gaussian", "beta", "mixed"]
     )

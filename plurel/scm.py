@@ -15,7 +15,7 @@ from tqdm import tqdm
 from plurel.bipartite import sample_bipartite_assignments
 from plurel.config import DAGParams, SCMParams
 from plurel.dag import DAG_REGISTRY
-from plurel.transforms import MLP, CategoricalDecoder, CategoricalEncoder
+from plurel.transforms import CategoricalDecoder, CategoricalEncoder, make_mechanism
 from plurel.ts import (
     BetaSourceGenerator,
     CategoricalTSDataGenerator,
@@ -167,7 +167,7 @@ class PropagationStrategy:
         self.mlp_emb_dim = scm_params.mlp_emb_dim
 
     def _get_numerical_encoder(self):
-        return MLP(
+        return make_mechanism(
             scm_params=self.scm_params,
             in_dim=self.scm_params.mlp_in_dim,
             hid_dim=self.mlp_emb_dim,
@@ -175,7 +175,7 @@ class PropagationStrategy:
         )
 
     def _get_numerical_decoder(self):
-        return MLP(
+        return make_mechanism(
             scm_params=self.scm_params,
             in_dim=self.mlp_emb_dim,
             hid_dim=self.mlp_emb_dim,

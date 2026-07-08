@@ -1,12 +1,62 @@
+import abc
 import math
 
 import numpy as np
 import torch
+from sklearn.ensemble import ExtraTreesRegressor, RandomForestRegressor
+from sklearn.tree import DecisionTreeRegressor
 
 from plurel.config import RandomFunctionActivation, SCMParams
 
 
-class MLP:
+def _build_tree_regressor(tree_model: str, max_depth: int, n_estimators: int):
+    if tree_model == "decision_tree":
+        return DecisionTreeRegressor(max_depth=max_depth, splitter="random")
+    if tree_model == "extra_trees":
+        return ExtraTreesRegressor(n_estimators=n_estimators, max_depth=max_depth, n_jobs=1)
+    if tree_model == "random_forest":
+        return RandomForestRegressor(n_estimators=n_estimators, max_depth=max_depth, n_jobs=1)
+    if tree_model == "xgboost":
+        from xgboost import XGBRegressor
+
+        return XGBRegressor(
+            n_estimators=n_estimators,
+            max_depth=max_depth,
+            tree_method="hist",
+            multi_strategy="multi_output_tree",
+            n_jobs=1,
+        )
+    raise ValueError(f"Invalid tree model: {tree_model}")
+
+
+class Mechanism(abc.ABC):
+    """A frozen random function mapping node/edge inputs to outputs.
+
+    Every mechanism is constructed with the same signature
+    ``(scm_params, in_dim, hid_dim, out_dim)`` and called as ``m(x)`` where
+    ``x`` has shape ``(..., in_dim)`` and the result has shape
+    ``(..., out_dim)``. A mechanism's parameters are fixed for its lifetime, so
+    it behaves as a deterministic function reused across propagation chunks.
+    ``MLPMechanism`` is additionally invariant to how rows are batched;
+    ``TreeMechanism`` fits on its first call, so it is batch-invariant only when
+    every row is seen in that first call. Register concrete subclasses in
+    ``MECHANISM_REGISTRY``.
+    """
+
+    @abc.abstractmethod
+    def __init__(
+        self,
+        scm_params: SCMParams,
+        in_dim: int,
+        hid_dim: int,
+        out_dim: int,
+    ): ...
+
+    @abc.abstractmethod
+    def __call__(self, x: torch.Tensor) -> torch.Tensor: ...
+
+
+class MLPMechanism(Mechanism):
     def __init__(
         self,
         scm_params: SCMParams,
@@ -41,6 +91,53 @@ class MLP:
         return x @ self.weights[-1]
 
 
+class TreeMechanism(Mechanism):
+    """Tree-based mechanism ported from TabICL's TreeLayer.
+
+    A tree regressor is fit against random Gaussian targets and its predictions
+    become the output — a piecewise-constant map whose partition is calibrated
+    to the input distribution. The fit happens once on the first call and is
+    cached, so the mechanism stays a frozen function reused across chunks.
+    """
+
+    def __init__(
+        self,
+        scm_params: SCMParams,
+        in_dim: int,
+        hid_dim: int,
+        out_dim: int,
+    ):
+        self.out_dim = out_dim
+        tree_model = scm_params.tree_model_choices.sample_uniform()
+        max_depth = 2 + int(np.random.exponential(1.0 / scm_params.tree_depth_lambda))
+        n_estimators = 1 + int(np.random.exponential(1.0 / scm_params.tree_n_estimators_lambda))
+        self.model = _build_tree_regressor(tree_model, max_depth, n_estimators)
+        self._fitted = False
+
+    def __call__(self, x):
+        orig_shape = x.shape[:-1]
+        X = x.reshape(-1, x.shape[-1]).nan_to_num(0.0).detach().cpu().numpy()
+        if not self._fitted:
+            y_fake = np.random.randn(X.shape[0], self.out_dim)
+            self.model.fit(X, y_fake.ravel() if self.out_dim == 1 else y_fake)
+            self._fitted = True
+        y = np.asarray(self.model.predict(X), dtype=np.float32).reshape(-1, self.out_dim)
+        return torch.from_numpy(y).reshape(*orig_shape, self.out_dim)
+
+
+MECHANISM_REGISTRY: dict[str, type[Mechanism]] = {
+    "mlp": MLPMechanism,
+    "tree": TreeMechanism,
+}
+
+
+def make_mechanism(scm_params: SCMParams, in_dim: int, hid_dim: int, out_dim: int):
+    name = scm_params.mechanism_type_choices.sample_uniform()
+    return MECHANISM_REGISTRY[name](
+        scm_params=scm_params, in_dim=in_dim, hid_dim=hid_dim, out_dim=out_dim
+    )
+
+
 class CategoricalEncoder:
     def __init__(
         self,
@@ -53,7 +150,7 @@ class CategoricalEncoder:
         )
         init_fn = scm_params.initialization_choices.sample_uniform()
         init_fn(self.E.weight)
-        self.mlp = MLP(
+        self.mechanism = make_mechanism(
             scm_params=scm_params,
             in_dim=embedding_dim,
             hid_dim=embedding_dim,
@@ -61,7 +158,7 @@ class CategoricalEncoder:
         )
 
     def __call__(self, x: torch.LongTensor):
-        return self.mlp(self.E(x))
+        return self.mechanism(self.E(x))
 
 
 class CategoricalDecoder:
@@ -76,7 +173,7 @@ class CategoricalDecoder:
         )
         init_fn = scm_params.initialization_choices.sample_uniform()
         init_fn(self.E.weight)
-        self.mlp = MLP(
+        self.mechanism = make_mechanism(
             scm_params=scm_params,
             in_dim=embedding_dim,
             hid_dim=embedding_dim,
@@ -84,7 +181,7 @@ class CategoricalDecoder:
         )
 
     def __call__(self, x: torch.Tensor):
-        x = self.mlp(x)
+        x = self.mechanism(x)
         if x.dim() == 1:
             sims = self.E.weight @ x
         else:
