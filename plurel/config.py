@@ -179,19 +179,18 @@ class SCMParams:
     bi_hsbm_clusters_per_level_choices: Choices = Choices(kind="range", value=[1, 3])
 
     ts_trend_alpha_choices: Choices = Choices(kind="range", value=[0.0, 2.0])
-    activity_table_ts_trend_scale_choices: Choices = Choices(kind="set", value=[-1, 1])
-    entity_table_ts_trend_scale: float = 0.0
-
     ts_cycle_freq_perc_choices: Choices = Choices(kind="set", value=[i / 10 for i in range(1, 11)])
-    activity_table_ts_cycle_scale_choices: Choices = Choices(kind="set", value=[-1, 1])
-    entity_table_ts_cycle_scale: float = 0.0
-
-    activity_table_ts_noise_scale: float = 0.05
-    entity_table_ts_noise_scale: float = 1
-
     ts_ar_rho_choices: Choices = Choices(kind="range", value=[0.0, 0.9])
-    entity_table_ts_ar_rho: float = 0.0
     ts_value_scale_choices: Choices = Choices(kind="set", value=[0.01, 0.1, 1, 10, 100])
+
+    activity_table_ts_trend_scale_choices: Choices = Choices(kind="set", value=[-1, 1])
+    activity_table_ts_cycle_scale_choices: Choices = Choices(kind="set", value=[-1, 1])
+    activity_table_ts_noise_scale: float = 0.05
+
+    entity_table_ts_trend_scale: float = 0.0
+    entity_table_ts_cycle_scale: float = 0.0
+    entity_table_ts_noise_scale: float = 1
+    entity_table_ts_ar_rho: float = 0.0
 
     propagation_agg_choices: Choices = Choices(
         kind="set",
