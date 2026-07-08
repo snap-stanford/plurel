@@ -190,6 +190,10 @@ class SCMParams:
     entity_table_ts_noise_scale: float = 1
 
     ts_ar_rho_choices: Choices = Choices(kind="range", value=[0.0, 0.9])
+    # Entity-table rows are i.i.d. by definition, so their `ts` sources must not
+    # carry serial correlation. Like trend/cycle scales above, AR is zeroed for
+    # entity tables (only activity tables sample ts_ar_rho_choices).
+    entity_table_ts_ar_rho: float = 0.0
     ts_value_scale_choices: Choices = Choices(kind="set", value=[0.01, 0.1, 1, 10, 100])
 
     propagation_agg_choices: Choices = Choices(

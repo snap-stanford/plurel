@@ -27,6 +27,41 @@ def _make_scm(seed: int = 0) -> SCM:
     )
 
 
+def test_ts_source_entity_has_zero_ar_rho():
+    """Entity-table `ts` sources must not carry serial correlation (i.i.d. rows).
+
+    Activity tables sample ts_ar_rho_choices; entity tables are pinned to
+    entity_table_ts_ar_rho (0.0).
+    """
+    scm_params = SCMParams()
+    factory = SOURCE_GEN_REGISTRY["ts"]
+    np.random.seed(0)
+    for _ in range(50):
+        entity_gen = factory.make_numerical(
+            scm_params=scm_params, num_rows=100, table_type=TableType.Entity
+        )
+        assert entity_gen.ar_rho == scm_params.entity_table_ts_ar_rho == 0.0
+        activity_gen = factory.make_numerical(
+            scm_params=scm_params, num_rows=100, table_type=TableType.Activity
+        )
+        assert 0.0 <= activity_gen.ar_rho <= 0.9
+
+
+def test_ts_source_entity_rows_are_uncorrelated():
+    """With AR disabled, an entity `ts` source produces ~0 lag-1 autocorrelation."""
+    np.random.seed(0)
+    scm_params = SCMParams()
+    gen = SOURCE_GEN_REGISTRY["ts"].make_numerical(
+        scm_params=scm_params, num_rows=100, table_type=TableType.Entity
+    )
+    # widen the value range so the noise term isn't clamped to a constant
+    gen.min_value, gen.max_value = -1e6, 1e6
+    gen.noise_scale = 1.0
+    x = np.array([gen.get_value(row_idx=i) for i in range(5000)])
+    lag1 = np.corrcoef(x[:-1], x[1:])[0, 1]
+    assert abs(lag1) < 0.1, f"entity ts source is serially correlated: lag-1={lag1:.3f}"
+
+
 @pytest.mark.parametrize("seed", list(range(5)))
 def test_scm(seed):
     scms = []
