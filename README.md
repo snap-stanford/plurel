@@ -24,8 +24,8 @@ PluRel is a framework for synthesizing diverse multi-tabular relational database
 This repository provides:
 
 - Scalable generation of synthetic relational data (from scratch or SQL schemas), written directly in the relbench-3.0.0 format: a self-describing dataset directory with a `manifest.yaml` (relational metadata) next to plain `db/<table>.parquet` files, loadable with [relbench](https://github.com/snap-stanford/relbench)'s `load_dataset`.
-- High-performance context sampling via a Rust-based sampler (rustler).
-- Pretraining of relational transformers on synthetic data.
+
+Preprocessing (the Rust-based rustler sampler), pretraining, evaluation, and inference live in the [relational-transformer](https://github.com/rishabh-ranjan/relational-transformer) repo, which consumes PluRel's output format directly.
 
 ## Framework Design
 
@@ -40,21 +40,18 @@ To use PluRel as a library:
 pip install plurel
 ```
 
-Requires Python 3.12+. This installs the synthetic database generator only; the Rust context sampler and training scripts under `rt/` are part of the development setup below.
+Requires Python 3.12+.
 
 > [!NOTE]
 > Development moves on `main` ahead of tagged releases. If you need features or fixes that have not yet been published to PyPI, install from source using the setup below.
 
 ## Setup
 
-For development, testing, or running the pretraining scripts, set up the full environment with [pixi](https://pixi.sh/latest/installation/).
+For development and testing, set up the full environment with [pixi](https://pixi.sh/latest/installation/).
 
 ```bash
 # setup pixi environment
 $ pixi install
-
-# Compile and install the rust sampler
-$ cd rustler && pixi run maturin develop --uv --release && cd ..
 
 # Run tests
 $ pixi run pytest
@@ -70,7 +67,7 @@ $ pixi run pre-commit install
 
 ## Synthesize Relational Data from Scratch
 
-- The `SyntheticDataset` class can be used to create [relbench](https://github.com/snap-stanford/relbench) compatible dataset objects. With a `cache_dir` set, `get_db()` writes the dataset in relbench-3.0.0 format (`manifest.yaml` + `db/*.parquet`), ready for `relbench.load.load_dataset` and the Rust preprocessor.
+- The `SyntheticDataset` class can be used to create [relbench](https://github.com/snap-stanford/relbench) compatible dataset objects. With a `cache_dir` set, `get_db()` writes the dataset in relbench-3.0.0 format (`manifest.yaml` + `db/*.parquet`), ready for `relbench.load.load_dataset` and [relational-transformer](https://github.com/rishabh-ranjan/relational-transformer) preprocessing/training.
 - It only requires a `seed` and a `Config` object that contains `database`, `scm` and `dag` level params for sampling. See example below.
 
 ```py
@@ -111,8 +108,7 @@ We also provide a multiprocessing-based script to generate databases in parallel
 $ pixi run python scripts/synthetic_gen.py \
     --seed_offset 0 \
     --num_dbs 1000 \
-    --num_proc 16 \
-    --preprocess
+    --num_proc 16
 ```
 
 | Argument | Description |
@@ -120,92 +116,26 @@ $ pixi run python scripts/synthetic_gen.py \
 | `--seed_offset` | Seed offset for database generation. DBs will be named `plurel-<seed>` (override with `--db_prefix`). |
 | `--num_dbs` | Number of databases to generate. |
 | `--num_proc` | Number of parallel processes (default: number of CPU cores). |
-| `--preprocess` | Run preprocessing and embedding steps. Omit to skip. |
-| `--pre_dir` | Output directory for preprocessed data (default: `~/scratch/pre`). |
 
 > [!NOTE]
 > See [`examples/generation/`](examples/generation/) for a notebook that synthesizes from a SQL schema.
 
 
-## Preprocessed Data
+## Preprocessing, Pretraining, and Inference
 
-Preprocessed data lives on the Hugging Face Hub and is **downloaded automatically on demand** — every `pre_dir` argument in the training/eval code accepts either a local path or a Hub repo spec `org/repo[/subdir]`. Only the files needed for the requested databases are fetched and cached.
-
-- Preprocessed relbench databases: [stanford-star/relbench-preprocessed](https://huggingface.co/datasets/stanford-star/relbench-preprocessed) (the default `pre_dir`).
-- Preprocessed PluRel synthetic databases: [stanford-star/plurel-preprocessed](https://huggingface.co/datasets/stanford-star/plurel-preprocessed) (the default `synthetic_pre_dir`).
-
-No manual download is needed; to use locally generated/preprocessed data instead, pass a local directory (e.g. `~/scratch/pre`) as `pre_dir` / `synthetic_pre_dir`.
-
-## Download Synthetic Pretrained Checkpoints
-
-The synthetic pretrained model checkpoints are hosted on the Hugging Face Hub at [stanford-star/rt-plurel](https://huggingface.co/stanford-star/rt-plurel/tree/main).
+All model-side code — the Rust-based rustler context sampler, preprocessing, pretraining, evaluation, and inference (including on your own database) — lives in the [relational-transformer](https://github.com/rishabh-ranjan/relational-transformer) repo. PluRel's relbench-3.0.0 output plugs in directly:
 
 ```bash
-$ mkdir -p ~/scratch/rt_hf_ckpts
-
-$ pixi run hf download stanford-star/rt-plurel \
-    --repo-type model \
-    --local-dir ~/scratch/rt_hf_ckpts
+# in the relational-transformer repo: preprocess a generated database
+pixi run preprocess --dataset ~/.cache/relbench/plurel-0 --out-dir ~/scratch/pre
 ```
 
-One of the downloaded checkpoints will be listed as:
+Preprocessed data is hosted on the Hugging Face Hub and downloaded automatically on demand — every `pre_dir` argument there accepts a local path or a Hub repo spec:
 
-```bash
-$ ls ~/scratch/rt_hf_ckpts
+- [stanford-star/plurel-preprocessed](https://huggingface.co/datasets/stanford-star/plurel-preprocessed) — all 2000 PluRel synthetic databases, preprocessed.
+- [stanford-star/relbench-preprocessed](https://huggingface.co/datasets/stanford-star/relbench-preprocessed) — preprocessed relbench databases.
 
-# model pretrained on a dataset of size 4B tokens curated from 1024 synthetic RDBs
-synthetic-pretrain_rdb_1024_size_4b.pt
-```
-
-## Run Inference on Your Own Database
-
-Use a pretrained PluRel checkpoint to make predictions on **your own** relational
-database (DuckDB, Postgres, or MySQL). The guided walkthrough in
-[`examples/inference/`](examples/inference/) takes you from a SQL database to scored
-predictions in three steps — you edit one config file and run three scripts:
-
-```bash
-# (optional) build a tiny demo DuckDB so you can try the flow first
-$ pixi run python examples/inference/make_demo_duckdb.py
-
-$ pixi run python examples/inference/1_data_prep.py   # convert your DB to RelBench format
-$ pixi run python examples/inference/2_task_prep.py   # define the prediction task
-$ pixi run python examples/inference/3_predict.py     # download the model, predict, and score
-```
-
-Point it at your own data by editing [`examples/inference/config.py`](examples/inference/config.py)
-(connection URI, table schema, and the prediction task), then rerun the three steps.
-Step 3 downloads the checkpoint from the Hugging Face Hub, preprocesses the data, runs
-inference on the test split, and reports the metric (AUROC / MAE). See the
-[walkthrough README](examples/inference/README.md) for details.
-
-Requires the [Setup](#setup) environment (including the compiled Rust sampler).
-
-> [!NOTE]
-> Postgres and MySQL are read through SQLAlchemy — install the matching driver
-> (`psycopg2-binary` or `pymysql`). DuckDB files are read natively. Add `--device cpu`
-> to step 3 to run without a GPU, or set `CHECKPOINT` in `config.py` to use a local
-> checkpoint instead of downloading.
-
-## Pretraining Experiments
-
-- Baseline (real-world) pretraining on relbench datasets with a randomly initialized relational-transformer (RT) model.
-
-```bash
-$ pixi run torchrun --standalone --nproc_per_node=1 scripts/baseline_pretrain.py
-```
-
-- Synthetic pretraining on varying number of databases and dataset sizes with a randomly initialized RT model.
-
-```bash
-$ pixi run torchrun --standalone --nproc_per_node=1 scripts/synthetic_pretrain.py
-```
-
-- Continued pretraining on relbench datasets using the synthetic pretrained models. For faster experimentation, the downloaded models from huggingface (stored in `~/scratch/rt_hf_ckpts`) can be passed to the `load_ckpt_path` argument in the training script.
-
-```bash
-$ pixi run torchrun --standalone --nproc_per_node=1 scripts/cntd_pretrain.py
-```
+Synthetic pretrained checkpoints are on the Hub at [stanford-star/rt-plurel](https://huggingface.co/stanford-star/rt-plurel/tree/main); see the [relational-transformer docs](https://github.com/rishabh-ranjan/relational-transformer/tree/main/docs) for training and inference with them.
 
 ## Citation
 

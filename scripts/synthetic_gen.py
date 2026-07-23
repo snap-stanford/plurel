@@ -10,7 +10,9 @@ from tqdm import tqdm
 from plurel.config import Choices, Config, DAGParams, DatabaseParams, SCMParams
 from plurel.dataset import SyntheticDataset
 from plurel.utils import set_random_seed
-from rt.tasks import DB_PREFIX
+
+# Default name prefix for generated synthetic DBs: <DB_PREFIX>-<seed>.
+DB_PREFIX = "plurel"
 
 PRESETS = ("main", "v1.0.0")
 
@@ -83,10 +85,8 @@ def build_config(preset: str, cache_dir: Path) -> Config:
 
 def generate_plurel_db(
     seed: int,
-    preprocess: bool = False,
     preset: str = "main",
     db_prefix: str = DB_PREFIX,
-    pre_dir: str = "~/scratch/pre",
 ):
     torch.set_num_threads(1)
     set_random_seed(0)
@@ -99,34 +99,22 @@ def generate_plurel_db(
         config=build_config(preset=preset, cache_dir=cache_dir),
     )
 
-    # generate and cache db in relbench-3.0.0 format (manifest.yaml + db/*.parquet)
+    # generate and cache db in relbench-3.0.0 format (manifest.yaml + db/*.parquet).
+    # To preprocess for training, use the relational-transformer repo:
+    # https://github.com/rishabh-ranjan/relational-transformer
+    #   pixi run preprocess --dataset <cache_dir> --out-dir <pre_dir>
     dataset.get_db()
-
-    if preprocess:
-        from rt.embed import main as embed_main
-        from rt.preprocess import preprocess_db
-
-        preprocess_db(cache_dir, pre_dir)
-        embed_main(db_name, pre_dir=pre_dir)
 
 
 def main(
     seed_offset: int,
     num_dbs: int,
     num_proc: int,
-    preprocess: bool = False,
     preset: str = "main",
     db_prefix: str = DB_PREFIX,
-    pre_dir: str = "~/scratch/pre",
 ):
     seeds = [idx + seed_offset for idx in range(num_dbs)]
-    worker = partial(
-        generate_plurel_db,
-        preprocess=preprocess,
-        preset=preset,
-        db_prefix=db_prefix,
-        pre_dir=pre_dir,
-    )
+    worker = partial(generate_plurel_db, preset=preset, db_prefix=db_prefix)
 
     with Pool(processes=num_proc) as p:
         list(
@@ -162,13 +150,6 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "--preprocess",
-        action=argparse.BooleanOptionalAction,
-        default=False,
-        help="Run preprocessing and embedding steps. Use --preprocess to enable.",
-    )
-
-    parser.add_argument(
         "--preset",
         choices=PRESETS,
         default="main",
@@ -177,13 +158,6 @@ if __name__ == "__main__":
             "'v1.0.0' reconstructs the v1.0.0 release workload on main's "
             "optimized code (default: main)."
         ),
-    )
-
-    parser.add_argument(
-        "--pre_dir",
-        type=str,
-        default="~/scratch/pre",
-        help="Output directory for preprocessed data (default: ~/scratch/pre).",
     )
 
     parser.add_argument(
@@ -199,8 +173,6 @@ if __name__ == "__main__":
         seed_offset=args.seed_offset,
         num_dbs=args.num_dbs,
         num_proc=args.num_proc,
-        preprocess=args.preprocess,
         preset=args.preset,
         db_prefix=args.db_prefix,
-        pre_dir=args.pre_dir,
     )
