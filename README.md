@@ -23,9 +23,9 @@ PluRel is a framework for synthesizing diverse multi-tabular relational database
 
 This repository provides:
 
-- Scalable generation of synthetic relational data (from scratch or SQL schemas), written directly in the relbench-3.0.0 format: a self-describing dataset directory with a `manifest.yaml` (relational metadata) next to plain `db/<table>.parquet` files, loadable with [relbench](https://github.com/snap-stanford/relbench)'s `load_dataset`.
+- Scalable generation of synthetic relational data (from scratch or SQL schemas), written directly in the `relbench` format: a self-describing dataset directory with a `manifest.yaml` (relational metadata) next to plain `db/<table>.parquet` files, loadable with [relbench](https://github.com/snap-stanford/relbench)'s `load_dataset`.
 
-Preprocessing (the Rust-based rustler sampler), pretraining, evaluation, and inference live in the [relational-transformer](https://github.com/rishabh-ranjan/relational-transformer) repo, which consumes PluRel's output format directly.
+Preprocessing (the Rust-based rustler sampler), pretraining, evaluation, and inference live in the [relational-transformer](https://github.com/rishabh-ranjan/relational-transformer) repo, which consumes the `relbench` format, which PluRel outputs.
 
 > [!NOTE]
 > The paper-exact code — including the vendored rustler sampler and `rt/` training code used for all paper experiments (and matching the [stanford-star/rt-plurel](https://huggingface.co/stanford-star/rt-plurel) checkpoints) — is preserved at the [`v1.0.0`](https://github.com/stanford-star/plurel/tree/v1.0.0) tag.
@@ -70,7 +70,7 @@ $ pixi run pre-commit install
 
 ## Synthesize Relational Data from Scratch
 
-- The `SyntheticDataset` class can be used to create [relbench](https://github.com/snap-stanford/relbench) compatible dataset objects. With a `cache_dir` set, `get_db()` writes the dataset in relbench-3.0.0 format (`manifest.yaml` + `db/*.parquet`), ready for `relbench.load.load_dataset` and [relational-transformer](https://github.com/rishabh-ranjan/relational-transformer) preprocessing/training.
+- The `SyntheticDataset` class can be used to create [relbench](https://github.com/snap-stanford/relbench) compatible dataset objects. With a `cache_dir` set, `get_db()` writes the dataset in `relbench` format (`manifest.yaml` + `db/*.parquet`), ready for `relbench.load.load_dataset` and [relational-transformer](https://github.com/rishabh-ranjan/relational-transformer) preprocessing/training.
 - It only requires a `seed` and a `Config` object that contains `database`, `scm` and `dag` level params for sampling. See example below.
 
 ```py
@@ -126,7 +126,7 @@ $ pixi run python scripts/synthetic_gen.py \
 
 ## Preprocessing, Pretraining, and Inference
 
-All model-side code — the Rust-based rustler context sampler, preprocessing, pretraining, evaluation, and inference (including on your own database) — lives in the [relational-transformer](https://github.com/rishabh-ranjan/relational-transformer) repo. PluRel's relbench-3.0.0 output plugs in directly:
+All model-side code — the Rust-based rustler context sampler, preprocessing, pretraining, evaluation, and inference (including on your own database) — lives in the [relational-transformer](https://github.com/rishabh-ranjan/relational-transformer) repo. PluRel's `relbench`-format output plugs in directly:
 
 ```bash
 # in the relational-transformer repo: preprocess a generated database
