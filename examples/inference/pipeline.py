@@ -106,10 +106,19 @@ def build_database(tables_cfg: dict, raw: dict[str, pd.DataFrame]) -> Database:
 def save_database(db_name: str, db: Database) -> Path:
     out = dataset_dir(db_name) / "db"
     db.save(out)
-    # the Rust preprocessor reads relational metadata from manifest.yaml
+    # relbench-3.0.0 format: the manifest carries the relational metadata.
+    # For BYOD inference there is no temporal split of the db itself, so both
+    # split timestamps are the end of the data (the task parquets carry the
+    # actual eval split).
     from rt.preprocess import write_manifest
 
-    write_manifest(db, db_name, dataset_dir(db_name))
+    write_manifest(
+        db,
+        db_name,
+        dataset_dir(db_name),
+        val_timestamp=db.max_timestamp,
+        test_timestamp=db.max_timestamp,
+    )
     return out
 
 
@@ -151,6 +160,7 @@ def save_task_tables(
 
         write_task_manifest(
             out,
+            name=task_name,
             entity_table=task_cfg["entity_table"],
             entity_col=task_cfg["entity_col"],
             target_col=task_cfg["target_col"],

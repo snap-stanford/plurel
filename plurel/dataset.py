@@ -48,6 +48,41 @@ class SyntheticDataset(Dataset):
         self.val_timestamp = timestamps[val_start_idx]
         self.test_timestamp = timestamps[test_start_idx]
 
+    def get_db(self, upto_test_timestamp=True) -> Database:
+        db = super().get_db(upto_test_timestamp)
+        if self.cache_dir is not None:
+            # produce the dataset directly in relbench-3.0.0 format: a
+            # self-describing dir with manifest.yaml next to db/<table>.parquet
+            self.write_manifest(db)
+        return db
+
+    def write_manifest(self, db: Database, name: str | None = None):
+        from pathlib import Path
+
+        from relbench.manifest import DatasetManifest, TableSpec
+
+        cache_dir = Path(self.cache_dir).expanduser()
+        manifest_path = cache_dir / "manifest.yaml"
+        if manifest_path.exists():
+            return manifest_path
+
+        manifest = DatasetManifest(
+            name=name or cache_dir.name,
+            val_timestamp=str(self.val_timestamp),
+            test_timestamp=str(self.test_timestamp),
+            description=f"PluRel synthetic relational database (seed {self.seed}).",
+            tables={
+                table_name: TableSpec(
+                    pkey=table.pkey_col,
+                    time_col=table.time_col,
+                    fkeys=dict(table.fkey_col_to_pkey_table),
+                )
+                for table_name, table in db.table_dict.items()
+            },
+        )
+        manifest.save(manifest_path)
+        return manifest_path
+
     def _get_random_dag_table_relationships(self, num_tables: int):
         """
         Each table will have the following attributes:

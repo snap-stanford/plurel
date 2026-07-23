@@ -71,12 +71,9 @@ def generated_dbs():
                 cache_dir=cache_dir,
             ),
         )
-        # get_db() saves parquet files to {cache_dir}/db/ for Rust to read
+        # get_db() writes the dataset in relbench-3.0.0 format:
+        # manifest.yaml + {cache_dir}/db/*.parquet for the Rust preprocessor
         dbs[seed] = dataset.get_db()
-        # the Rust preprocessor reads relational metadata from manifest.yaml
-        from rt.preprocess import write_manifest
-
-        write_manifest(dbs[seed], db_name, cache_dir)
 
     yield dbs
 
@@ -96,10 +93,13 @@ def test_all_dbs_generated(generated_dbs):
 def test_parquet_files_cached(generated_dbs):
     """Verify that get_db() wrote parquet files where Rust expects them."""
     for seed in SEEDS:
-        db_dir = os.path.join(SCRATCH_RELBENCH, _db_name(seed), "db")
+        dataset_dir = os.path.join(SCRATCH_RELBENCH, _db_name(seed))
+        db_dir = os.path.join(dataset_dir, "db")
         assert os.path.isdir(db_dir), f"Missing cache dir: {db_dir}"
         parquets = glob.glob(os.path.join(db_dir, "*.parquet"))
         assert len(parquets) > 0, f"No parquet files in {db_dir}"
+        manifest = os.path.join(dataset_dir, "manifest.yaml")
+        assert os.path.isfile(manifest), f"Missing manifest: {manifest}"
 
 
 def test_valid_dbs_exist(generated_dbs):

@@ -99,13 +99,8 @@ def generate_plurel_db(
         config=build_config(preset=preset, cache_dir=cache_dir),
     )
 
-    # generate and cache db in relbench format
-    db = dataset.get_db()
-
-    # write the relbench-3.0.0 manifest.yaml that the Rust preprocessor reads
-    from rt.preprocess import write_manifest
-
-    write_manifest(db, db_name, cache_dir, description=f"PluRel synthetic database, seed {seed}.")
+    # generate and cache db in relbench-3.0.0 format (manifest.yaml + db/*.parquet)
+    dataset.get_db()
 
     if preprocess:
         from rt.embed import main as embed_main

@@ -23,7 +23,7 @@ PluRel is a framework for synthesizing diverse multi-tabular relational database
 
 This repository provides:
 
-- Scalable generation of synthetic relational data (from scratch or SQL schemas) compatible with [relbench](https://github.com/snap-stanford/relbench).
+- Scalable generation of synthetic relational data (from scratch or SQL schemas), written directly in the relbench-3.0.0 format: a self-describing dataset directory with a `manifest.yaml` (relational metadata) next to plain `db/<table>.parquet` files, loadable with [relbench](https://github.com/snap-stanford/relbench)'s `load_dataset`.
 - High-performance context sampling via a Rust-based sampler (rustler).
 - Pretraining of relational transformers on synthetic data.
 
@@ -70,7 +70,7 @@ $ pixi run pre-commit install
 
 ## Synthesize Relational Data from Scratch
 
-- The `SyntheticDataset` class can be used to create [relbench](https://github.com/snap-stanford/relbench) compatible dataset objects.
+- The `SyntheticDataset` class can be used to create [relbench](https://github.com/snap-stanford/relbench) compatible dataset objects. With a `cache_dir` set, `get_db()` writes the dataset in relbench-3.0.0 format (`manifest.yaml` + `db/*.parquet`), ready for `relbench.load.load_dataset` and the Rust preprocessor.
 - It only requires a `seed` and a `Config` object that contains `database`, `scm` and `dag` level params for sampling. See example below.
 
 ```py

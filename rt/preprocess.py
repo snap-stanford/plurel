@@ -1,9 +1,10 @@
-"""Preprocess a relbench-format dataset dir into rustler's on-disk format.
+"""Preprocess a relbench-3.0.0 dataset dir into rustler's on-disk format.
 
-rustler's preprocessor is self-describing: it reads a ``manifest.yaml`` next to
-``db/<table>.parquet`` as the sole source of relational metadata (primary keys,
-foreign keys, time columns). ``write_manifest`` produces that manifest from a
-relbench ``Database`` object; ``preprocess_db`` runs the Rust preprocessor.
+A relbench-3.0.0 dataset dir is self-describing: a ``manifest.yaml`` next to
+``db/<table>.parquet`` is the sole source of relational metadata (primary keys,
+foreign keys, time columns). ``write_manifest`` / ``write_task_manifest``
+produce those manifests via ``relbench.manifest``; ``preprocess_db`` runs the
+Rust preprocessor.
 """
 
 import os
@@ -17,55 +18,67 @@ maturin_import_hook.install(settings=MaturinSettings(release=True, uv=True))
 import rustler
 
 
-def write_manifest(db, db_name: str, dataset_dir, description: str = "") -> Path:
+def write_manifest(
+    db,
+    db_name: str,
+    dataset_dir,
+    val_timestamp,
+    test_timestamp,
+    description: str | None = None,
+) -> Path:
     """Write a relbench-3.0.0 ``manifest.yaml`` for a relbench ``Database``.
 
     ``dataset_dir`` is the dataset root containing ``db/<table>.parquet``.
     """
-    import yaml
+    from relbench.manifest import DatasetManifest, TableSpec
 
     dataset_dir = Path(dataset_dir).expanduser()
-    dataset_dir.mkdir(parents=True, exist_ok=True)
-
-    tables = {}
-    for table_name, table in db.table_dict.items():
-        tables[table_name] = {
-            "pkey": table.pkey_col,
-            "time_col": table.time_col,
-            "fkeys": dict(table.fkey_col_to_pkey_table),
-        }
-
-    manifest = {
-        "name": db_name,
-        "manifest_version": 1,
-        "description": description,
-        "tables": tables,
-    }
-
+    manifest = DatasetManifest(
+        name=db_name,
+        val_timestamp=str(val_timestamp),
+        test_timestamp=str(test_timestamp),
+        description=description,
+        tables={
+            table_name: TableSpec(
+                pkey=table.pkey_col,
+                time_col=table.time_col,
+                fkeys=dict(table.fkey_col_to_pkey_table),
+            )
+            for table_name, table in db.table_dict.items()
+        },
+    )
     manifest_path = dataset_dir / "manifest.yaml"
-    with open(manifest_path, "w") as f:
-        yaml.safe_dump(manifest, f, sort_keys=True, default_flow_style=False)
+    manifest.save(manifest_path)
     return manifest_path
 
 
 def write_task_manifest(
-    task_dir, entity_table: str, entity_col: str, target_col: str, task_type: str, time_col: str
+    task_dir,
+    name: str,
+    entity_table: str,
+    entity_col: str,
+    target_col: str,
+    task_type: str,
+    time_col: str,
 ) -> Path:
-    """Write a ``manifest.yaml`` for a task dir with train/val/test parquets."""
-    import yaml
+    """Write a ``manifest.yaml`` for a task dir with train/val/test parquets.
+
+    ``kind="external"``: the split parquets are served as-is.
+    """
+    from relbench.manifest import TaskManifest
 
     task_dir = Path(task_dir).expanduser()
-    task_dir.mkdir(parents=True, exist_ok=True)
-    manifest = {
-        "entity_table": entity_table,
-        "entity_col": entity_col,
-        "target_col": target_col,
-        "task_type": task_type,
-        "time_col": time_col,
-    }
+    manifest = TaskManifest(
+        name=name,
+        kind="external",
+        task_type=task_type,
+        entity_table=entity_table,
+        entity_col=entity_col,
+        target_col=target_col,
+        time_col=time_col,
+    )
     manifest_path = task_dir / "manifest.yaml"
-    with open(manifest_path, "w") as f:
-        yaml.safe_dump(manifest, f, sort_keys=True, default_flow_style=False)
+    manifest.save(manifest_path)
     return manifest_path
 
 

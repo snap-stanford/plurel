@@ -37,7 +37,7 @@ dependencies = [
     "numpy",
     "pandas",
     "pytorch-frame",
-    "relbench==1.1.0",
+    "relbench>=3.0.0",
     "sqlalchemy>=2",
     "torch>=2",
     "tqdm",
@@ -81,7 +81,8 @@ polars = ">=1.37.1,<2"
 maturin_import_hook = ">=0.3.0,<0.4"
 matplotlib = ">=3.10.8,<4"
 scikit-learn = "<1.6.0"
-relbench = { version = "==1.1.0", extras = ["full"] }
+# pinned until relbench 3.0.0 (manifest-driven dataset format) is released
+relbench = { git = "https://github.com/rishabh-ranjan/relbench", rev = "fd74e850688bc761368e0e4f5a0281ebe3b8a2c3" }
 pyyaml = ">=6"
 
 [tool.pixi.dependencies]
