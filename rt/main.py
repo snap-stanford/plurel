@@ -15,7 +15,7 @@ from torch.nn.utils import clip_grads_with_norm_, get_total_norm
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
 
-from rt.data import RelationalDataset
+from rt.data import PLUREL_PRE, RELBENCH_PRE, RelationalDataset
 from rt.model import RelationalTransformer
 from rt.tasks import is_synthetic_db_name
 
@@ -97,6 +97,11 @@ def main(
     d_model,
     num_heads,
     d_ff,
+    # preprocessed data locations: local paths or HF Hub repo specs.
+    # `pre_dir` serves real (relbench) databases, `synthetic_pre_dir` serves
+    # generated plurel-* databases.
+    pre_dir=RELBENCH_PRE,
+    synthetic_pre_dir=PLUREL_PRE,
 ):
     seed_everything(seed)
 
@@ -123,6 +128,12 @@ def main(
     # torch._dynamo.config.optimize_ddp = True
     # torch.set_num_threads(1)
 
+    def _pre_dir_for(db_name):
+        return synthetic_pre_dir if is_synthetic_db_name(db_name) else pre_dir
+
+    assert len({is_synthetic_db_name(t[0]) for t in train_tasks}) == 1, (
+        "train_tasks must be all-synthetic or all-real (they share one pre_dir)"
+    )
     dataset = RelationalDataset(
         tasks=[
             (db_name, table_name, target_column, "train", columns_to_drop)
@@ -136,6 +147,8 @@ def main(
         embedding_model=embedding_model,
         d_text=d_text,
         seed=seed,
+        pre_dir=_pre_dir_for(train_tasks[0][0]),
+        train=True,
     )
     loader = DataLoader(
         dataset,
@@ -161,8 +174,8 @@ def main(
                 embedding_model=embedding_model,
                 d_text=d_text,
                 seed=0,
+                pre_dir=_pre_dir_for(db_name),
             )
-            eval_dataset.sampler.shuffle_py(0)
             eval_loaders[(db_name, table_name, split)] = DataLoader(
                 eval_dataset,
                 batch_size=None,
@@ -282,16 +295,14 @@ def main(
                     if rank == 0:
                         eval_load_times.append(eval_load_time)
 
-                    true_batch_size = batch.pop("true_batch_size")
-                    _eval_batch_size = eval_batch_size if not is_synthetic_db_name(db_name) else 10
-                    if true_batch_size < _eval_batch_size:
+                    # phantom slots in the last batch have batch_mask=False and
+                    # carry no target cells, so target-indexed gathers skip them
+                    batch_mask = batch.pop("batch_mask")
+                    true_batch_size = int(batch_mask.sum())
+                    if true_batch_size == 0:
                         continue
                     for k in batch:
                         batch[k] = batch[k].to(device, non_blocking=True)
-
-                    batch["masks"][true_batch_size:, :] = False
-                    batch["is_targets"][true_batch_size:, :] = False
-                    batch["is_padding"][true_batch_size:, :] = True
 
                     loss, yhat_dict = net(batch)
                     if np.isnan(loss.detach().cpu().numpy()):
@@ -426,7 +437,6 @@ def main(
     best_test_metrics = dict()
 
     while steps < max_steps:
-        loader.dataset.sampler.shuffle_py(int(steps / len(loader)))
         loader_iter = iter(loader)
         while steps < max_steps:
             if (eval_freq is not None and steps % eval_freq == 0) or (
@@ -455,7 +465,7 @@ def main(
                 batch = next(loader_iter)
             except StopIteration:
                 break
-            batch.pop("true_batch_size")
+            batch.pop("batch_mask")
             for k in batch:
                 batch[k] = batch[k].to(device, non_blocking=True)
             toc = time.time()

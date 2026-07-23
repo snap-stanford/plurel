@@ -258,11 +258,11 @@ class RelationalTransformer(nn.Module):
         for i, t in enumerate(["number", "text", "datetime", "boolean"]):
             x = x + (
                 self.norm_dict[t](self.enc_dict[t](batch[t + "_values"]))
-                * ((batch["sem_types"] == i) & ~batch["masks"] & ~is_padding)[..., None]
+                * ((batch["sem_types"] == i) & ~batch["is_targets"] & ~is_padding)[..., None]
             )
             x = x + (
                 self.mask_embs[t]
-                * ((batch["sem_types"] == i) & batch["masks"] & ~is_padding)[..., None]
+                * ((batch["sem_types"] == i) & batch["is_targets"] & ~is_padding)[..., None]
             )
 
         for i, block in enumerate(self.blocks):
@@ -274,7 +274,8 @@ class RelationalTransformer(nn.Module):
 
         B, S, _ = x.shape
         sem_types = batch["sem_types"]  # (B,S) ints 0..3
-        masks = batch["masks"].bool()  # (B,S) where to train
+        # target cells (incl. any randomly masked cells) are the cells to train on
+        masks = batch["is_targets"].bool()  # (B,S) where to train
 
         loss_per_seq = x.new_zeros(B)
 
@@ -306,7 +307,8 @@ class RelationalTransformer(nn.Module):
                 yhat_out[t] = yhat
 
         # Normalize by number of masks per sequence, then average across sequences
-        masks_per_seq = masks.sum(dim=1).float()  # (B,)
+        # clamp: phantom rows (batch_mask=False) have no target cells
+        masks_per_seq = masks.sum(dim=1).float().clamp(min=1)  # (B,)
         loss_per_seq = loss_per_seq / masks_per_seq  # (B,)
         loss_out = loss_per_seq.mean()  # scalar
 

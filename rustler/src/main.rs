@@ -2,6 +2,7 @@ use clap::{Parser, Subcommand};
 
 mod common;
 pub mod fly;
+#[cfg(feature = "pre")]
 mod pre;
 
 #[derive(Parser)]
@@ -12,6 +13,7 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
+    #[cfg(feature = "pre")]
     Pre(pre::Cli),
     Fly(fly::Cli),
 }
@@ -19,6 +21,7 @@ enum Command {
 fn main() {
     let cli = Cli::parse();
     match cli.command {
+        #[cfg(feature = "pre")]
         Command::Pre(cli) => {
             pre::main(cli);
         }

@@ -17,7 +17,7 @@ def main():
 
     task = config.TASK
     split_tables = pipeline.build_task_tables(task)
-    out = pipeline.save_task_tables(config.DB_NAME, task["name"], split_tables)
+    out = pipeline.save_task_tables(config.DB_NAME, task["name"], split_tables, task_cfg=task)
 
     print(f"[step 2] task '{task['name']}' ({task['task_type']})")
     print(f"   predict '{task['target_col']}' for '{task['entity_table']}' at '{task['time_col']}'")

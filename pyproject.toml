@@ -82,6 +82,7 @@ maturin_import_hook = ">=0.3.0,<0.4"
 matplotlib = ">=3.10.8,<4"
 scikit-learn = "<1.6.0"
 relbench = { version = "==1.1.0", extras = ["full"] }
+pyyaml = ">=6"
 
 [tool.pixi.dependencies]
 pytest = ">=9.0.1,<10"

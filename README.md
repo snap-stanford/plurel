@@ -65,10 +65,6 @@ $ pixi run ruff format .
 
 # Install pre-commit hooks
 $ pixi run pre-commit install
-
-# link cache repository
-$ mkdir ~/scratch
-$ ln -s ~/.cache/relbench ~/scratch/relbench
 ```
 
 
@@ -125,39 +121,20 @@ $ pixi run python scripts/synthetic_gen.py \
 | `--num_dbs` | Number of databases to generate. |
 | `--num_proc` | Number of parallel processes (default: number of CPU cores). |
 | `--preprocess` | Run preprocessing and embedding steps. Omit to skip. |
+| `--pre_dir` | Output directory for preprocessed data (default: `~/scratch/pre`). |
 
 > [!NOTE]
 > See [`examples/generation/`](examples/generation/) for a notebook that synthesizes from a SQL schema.
 
 
-## Download Preprocessed Data
+## Preprocessed Data
 
-The preprocessed synthetic data is available on the Hugging Face Hub at [kvignesh1420/plurel](https://huggingface.co/datasets/kvignesh1420/plurel/tree/main).
+Preprocessed data lives on the Hugging Face Hub and is **downloaded automatically on demand** — every `pre_dir` argument in the training/eval code accepts either a local path or a Hub repo spec `org/repo[/subdir]`. Only the files needed for the requested databases are fetched and cached.
 
-1. Install the HuggingFace CLI (if not present)
-```bash
-pixi add huggingface_hub
-```
+- Preprocessed relbench databases: [stanford-star/relbench-preprocessed](https://huggingface.co/datasets/stanford-star/relbench-preprocessed) (the default `pre_dir`).
+- Preprocessed PluRel synthetic databases: [stanford-star/plurel-preprocessed](https://huggingface.co/datasets/stanford-star/plurel-preprocessed) (the default `synthetic_pre_dir`).
 
-2. Create the destination
-```bash
-mkdir -p ~/scratch/pre
-```
-
-3. Download the repository contents into ~/scratch/pre
-```bash
-pixi run hf download kvignesh1420/plurel \
-    --repo-type dataset \
-    --local-dir ~/scratch/pre
-```
-
-The preprocessed relbench data is available on the Hugging Face Hub at [hvag976/relational-transformer](https://huggingface.co/datasets/hvag976/relational-transformer/tree/main).
-
-```bash
-pixi run hf download hvag976/relational-transformer \
-    --repo-type dataset \
-    --local-dir ~/scratch/pre
-```
+No manual download is needed; to use locally generated/preprocessed data instead, pass a local directory (e.g. `~/scratch/pre`) as `pre_dir` / `synthetic_pre_dir`.
 
 ## Download Synthetic Pretrained Checkpoints
 

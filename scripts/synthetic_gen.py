@@ -1,5 +1,4 @@
 import argparse
-import subprocess
 from functools import partial
 from multiprocessing import Pool, cpu_count
 from pathlib import Path
@@ -87,37 +86,33 @@ def generate_plurel_db(
     preprocess: bool = False,
     preset: str = "main",
     db_prefix: str = DB_PREFIX,
+    pre_dir: str = "~/scratch/pre",
 ):
     torch.set_num_threads(1)
     set_random_seed(0)
     db_name = f"{db_prefix}-{seed}"
     print(f"Creating dataset: {db_name}")
 
-    rustler_dir = Path("rustler").resolve()
-
+    cache_dir = Path(f"~/.cache/relbench/{db_name}").expanduser()
     dataset = SyntheticDataset(
         seed=seed,
-        config=build_config(
-            preset=preset, cache_dir=Path(f"~/.cache/relbench/{db_name}").expanduser()
-        ),
+        config=build_config(preset=preset, cache_dir=cache_dir),
     )
 
     # generate and cache db in relbench format
-    dataset.get_db()
+    db = dataset.get_db()
+
+    # write the relbench-3.0.0 manifest.yaml that the Rust preprocessor reads
+    from rt.preprocess import write_manifest
+
+    write_manifest(db, db_name, cache_dir, description=f"PluRel synthetic database, seed {seed}.")
 
     if preprocess:
-        # pre-process
-        subprocess.run(
-            ["pixi", "run", "cargo", "run", "--release", "--", "pre", db_name],
-            cwd=rustler_dir,
-            check=True,
-        )
-        # embed text
-        subprocess.run(
-            ["pixi", "run", "python", "-m", "rt.embed", db_name],
-            cwd=rustler_dir,
-            check=True,
-        )
+        from rt.embed import main as embed_main
+        from rt.preprocess import preprocess_db
+
+        preprocess_db(cache_dir, pre_dir)
+        embed_main(db_name, pre_dir=pre_dir)
 
 
 def main(
@@ -127,9 +122,16 @@ def main(
     preprocess: bool = False,
     preset: str = "main",
     db_prefix: str = DB_PREFIX,
+    pre_dir: str = "~/scratch/pre",
 ):
     seeds = [idx + seed_offset for idx in range(num_dbs)]
-    worker = partial(generate_plurel_db, preprocess=preprocess, preset=preset, db_prefix=db_prefix)
+    worker = partial(
+        generate_plurel_db,
+        preprocess=preprocess,
+        preset=preset,
+        db_prefix=db_prefix,
+        pre_dir=pre_dir,
+    )
 
     with Pool(processes=num_proc) as p:
         list(
@@ -183,6 +185,13 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
+        "--pre_dir",
+        type=str,
+        default="~/scratch/pre",
+        help="Output directory for preprocessed data (default: ~/scratch/pre).",
+    )
+
+    parser.add_argument(
         "--db_prefix",
         type=str,
         default=DB_PREFIX,
@@ -198,4 +207,5 @@ if __name__ == "__main__":
         preprocess=args.preprocess,
         preset=args.preset,
         db_prefix=args.db_prefix,
+        pre_dir=args.pre_dir,
     )

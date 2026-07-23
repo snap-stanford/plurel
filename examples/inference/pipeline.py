@@ -9,8 +9,6 @@ from __future__ import annotations
 
 import json
 import os
-import subprocess
-import sysconfig
 import time
 from pathlib import Path
 
@@ -108,6 +106,10 @@ def build_database(tables_cfg: dict, raw: dict[str, pd.DataFrame]) -> Database:
 def save_database(db_name: str, db: Database) -> Path:
     out = dataset_dir(db_name) / "db"
     db.save(out)
+    # the Rust preprocessor reads relational metadata from manifest.yaml
+    from rt.preprocess import write_manifest
+
+    write_manifest(db, db_name, dataset_dir(db_name))
     return out
 
 
@@ -138,10 +140,23 @@ def build_task_tables(task_cfg: dict) -> dict[str, Table]:
     return tables
 
 
-def save_task_tables(db_name: str, task_name: str, split_tables: dict[str, Table]) -> Path:
+def save_task_tables(
+    db_name: str, task_name: str, split_tables: dict[str, Table], task_cfg: dict | None = None
+) -> Path:
     out = dataset_dir(db_name) / "tasks" / task_name
     for split, table in split_tables.items():
         table.save(out / f"{split}.parquet")
+    if task_cfg is not None:
+        from rt.preprocess import write_task_manifest
+
+        write_task_manifest(
+            out,
+            entity_table=task_cfg["entity_table"],
+            entity_col=task_cfg["entity_col"],
+            target_col=task_cfg["target_col"],
+            task_type=task_cfg["task_type"],
+            time_col=task_cfg["time_col"],
+        )
     return out
 
 
@@ -172,36 +187,22 @@ def resolve_checkpoint(local_path, hf_repo, hf_filename) -> tuple[Path, dict]:
 
 def ensure_preprocessed(db_name: str, embedding_model: str) -> None:
     """Run the Rust preprocessor + text embedding unless already cached."""
-    pre = Path(os.environ["HOME"]) / "scratch" / "pre" / db_name
+    pre_root = Path(os.environ["HOME"]) / "scratch" / "pre"
+    pre = pre_root / db_name
     emb = pre / f"text_emb_{embedding_model}.bin"
     if (pre / "table_info.json").exists() and emb.exists():
         print(f"   using cached preprocessed data at {pre}")
         return
-    rustler_dir = Path(__file__).resolve().parents[2] / "rustler"
     if not (pre / "table_info.json").exists():
         print(f"   preprocessing '{db_name}' with the Rust sampler...")
-        # The rustler CLI links against libpython; bake this environment's lib dir
-        # into the binary's rpath so the dynamic loader finds it (macOS SIP strips
-        # DYLD_* vars, so an rpath is the only reliable way there; fine on Linux too).
-        libdir = sysconfig.get_config_var("LIBDIR") or ""
-        rustflags = f"{os.environ.get('RUSTFLAGS', '')} -C link-args=-Wl,-rpath,{libdir}".strip()
-        env = os.environ | {
-            "RUSTFLAGS": rustflags,
-            "LD_LIBRARY_PATH": f"{libdir}:{os.environ.get('LD_LIBRARY_PATH', '')}",
-        }
-        subprocess.run(
-            ["pixi", "run", "cargo", "run", "--release", "--", "pre", db_name],
-            cwd=rustler_dir,
-            check=True,
-            env=env,
-        )
+        from rt.preprocess import preprocess_db
+
+        preprocess_db(dataset_dir(db_name), pre_root)
     if not emb.exists():
         print(f"   embedding text columns for '{db_name}'...")
-        subprocess.run(
-            ["pixi", "run", "python", "-m", "rt.embed", db_name],
-            cwd=rustler_dir,
-            check=True,
-        )
+        from rt.embed import main as embed_main
+
+        embed_main(db_name, pre_dir=str(pre_root), embedding_model=embedding_model)
 
 
 @torch.inference_mode()
@@ -246,8 +247,8 @@ def run_inference(config, ckpt: Path, device: str, batch_size: int, num_workers:
         embedding_model=cfg["embedding_model"],
         d_text=cfg["d_text"],
         seed=0,
+        pre_dir=str(Path(os.environ["HOME"]) / "scratch" / "pre"),
     )
-    ds.sampler.shuffle_py(0)
     loader = torch.utils.data.DataLoader(
         ds, batch_size=None, num_workers=num_workers, pin_memory=(device == "cuda"), in_order=True
     )
@@ -257,13 +258,11 @@ def run_inference(config, ckpt: Path, device: str, batch_size: int, num_workers:
     t0 = time.time()
     ents, tss, vals = [], [], []
     for bi, batch in enumerate(loader):
-        tbs = batch.pop("true_batch_size")
+        # phantom slots in the final batch carry no target cells, so the
+        # target-indexed gathers below skip them automatically
+        batch.pop("batch_mask")
         for k in batch:
             batch[k] = batch[k].to(device, non_blocking=True)
-        # mask out the padded tail of the final batch
-        batch["masks"][tbs:, :] = False
-        batch["is_targets"][tbs:, :] = False
-        batch["is_padding"][tbs:, :] = True
         _, yhat = net(batch)
         if bi == 0 or (bi + 1) % 50 == 0 or bi + 1 == n_batches:
             print(f"   batch {bi + 1}/{n_batches} ({time.time() - t0:.0f}s)", flush=True)

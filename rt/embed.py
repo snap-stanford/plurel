@@ -32,10 +32,12 @@ class TextEmbedder:
 
 def main(
     dataset_name,
+    pre_dir="~/scratch/pre",
     device=None,
     batch_size=8192,
     embedding_model="all-MiniLM-L12-v2",
 ):
+    pre_dir = os.path.expanduser(pre_dir)
     if device is None:
         # Get list of all available CUDA devices
         if torch.cuda.is_available():
@@ -51,7 +53,7 @@ def main(
     else:
         device_type = torch.device(device).type
 
-    text_path = f"{os.environ['HOME']}/scratch/pre/{dataset_name}/text.json"
+    text_path = f"{pre_dir}/{dataset_name}/text.json"
     with open(text_path) as f:
         raw = f.read()
     text_list = orjson.loads(raw)
@@ -63,9 +65,23 @@ def main(
     )
     emb_list = text_embedder(text_list, device=device)
 
-    emb_path = f"{os.environ['HOME']}/scratch/pre/{dataset_name}/text_emb_{embedding_model}.bin"
+    emb_path = f"{pre_dir}/{dataset_name}/text_emb_{embedding_model}.bin"
     emb = np.stack(emb_list).astype(bfloat16)
     emb.tofile(emb_path)
+
+    # record the embedding in meta.json so consumers can discover it
+    meta_path = f"{pre_dir}/{dataset_name}/meta.json"
+    if os.path.exists(meta_path):
+        import json
+
+        with open(meta_path) as f:
+            meta = json.load(f)
+        meta.setdefault("text_embeddings", {})[embedding_model] = {
+            "file": f"text_emb_{embedding_model}.bin",
+            "d_text": int(emb.shape[1]),
+        }
+        with open(meta_path, "w") as f:
+            json.dump(meta, f, indent=2)
 
 
 if __name__ == "__main__":

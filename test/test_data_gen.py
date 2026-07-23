@@ -1,8 +1,6 @@
 import glob
 import os
 import shutil
-import subprocess
-import sysconfig
 
 import pytest
 
@@ -24,7 +22,6 @@ SEEDS = list(range(SEED_OFFSET, SEED_OFFSET + NUM_DBS))
 HOME = os.path.expanduser("~")
 SCRATCH_RELBENCH = os.path.join(HOME, "scratch", "relbench")
 SCRATCH_PRE = os.path.join(HOME, "scratch", "pre")
-RUSTLER_DIR = os.path.realpath("rustler")
 
 # Small tables so the test runs fast
 SMALL_DB_PARAMS = DatabaseParams(
@@ -35,7 +32,7 @@ SMALL_DB_PARAMS = DatabaseParams(
 
 PRE_OUTPUT_FILES = [
     "text.json",
-    "text_map.json",
+    "meta.json",
     "column_index.json",
     "table_info.json",
     "nodes.rkyv",
@@ -76,6 +73,10 @@ def generated_dbs():
         )
         # get_db() saves parquet files to {cache_dir}/db/ for Rust to read
         dbs[seed] = dataset.get_db()
+        # the Rust preprocessor reads relational metadata from manifest.yaml
+        from rt.preprocess import write_manifest
+
+        write_manifest(dbs[seed], db_name, cache_dir)
 
     yield dbs
 
@@ -106,28 +107,14 @@ def test_valid_dbs_exist(generated_dbs):
     assert valid_count > 0, "No valid databases were generated"
 
 
-def _cargo_env():
-    """Build env dict so the Rust binary can find libpython at link time."""
-    env = os.environ.copy()
-    libdir = sysconfig.get_config_var("LIBDIR")
-    # Embed the Python library path as an rpath in the binary so the
-    # dynamic linker can find libpython at runtime.
-    env["RUSTFLAGS"] = f"-C link-arg=-Wl,-rpath,{libdir}"
-    return env
-
-
 @pytest.fixture(scope="module")
 def preprocessed_dbs(generated_dbs):
-    """Run Rust `pre` on each generated DB."""
-    env = _cargo_env()
+    """Run the Rust preprocessor on each generated DB."""
+    from rt.preprocess import preprocess_db
+
     for seed in SEEDS:
         db_name = _db_name(seed)
-        subprocess.run(
-            ["pixi", "run", "cargo", "run", "--release", "--", "pre", db_name],
-            cwd=RUSTLER_DIR,
-            env=env,
-            check=True,
-        )
+        preprocess_db(os.path.join(SCRATCH_RELBENCH, db_name), SCRATCH_PRE)
     return generated_dbs
 
 
