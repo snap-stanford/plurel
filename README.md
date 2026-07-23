@@ -28,7 +28,7 @@ This repository provides:
 Preprocessing (the Rust-based rustler sampler), pretraining, evaluation, and inference live in the [relational-transformer](https://github.com/rishabh-ranjan/relational-transformer) repo, which consumes PluRel's output format directly.
 
 > [!NOTE]
-> The paper-exact code — including the vendored rustler sampler and `rt/` training code used for all paper experiments (and matching the [stanford-star/rt-plurel](https://huggingface.co/stanford-star/rt-plurel) checkpoints) — is preserved at the [`v1.1.0`](https://github.com/stanford-star/plurel/tree/v1.1.0) tag.
+> The paper-exact code — including the vendored rustler sampler and `rt/` training code used for all paper experiments (and matching the [stanford-star/rt-plurel](https://huggingface.co/stanford-star/rt-plurel) checkpoints) — is preserved at the [`v1.0.0`](https://github.com/stanford-star/plurel/tree/v1.0.0) tag.
 
 ## Framework Design
 
