@@ -8,12 +8,52 @@ from plurel.schema import RandomSchemaGraphBuilder, SQLSchemaGraphBuilder
 from plurel.scm import SCM
 from plurel.utils import TableType, set_random_seed
 
+
+def _standardize(x):
+    return (x - x.mean()) / max(x.std(), 1e-8)
+
+
+def _bounded_z(x, max_abs: float = 10.0):
+    return np.clip(_standardize(x), -max_abs, max_abs)
+
+
+def _threshold(x):
+    z = _standardize(x)
+    return np.maximum(z - np.quantile(z, np.random.uniform(0.4, 0.95)), 0)
+
+
+def _square(x):
+    z = _bounded_z(x)
+    return np.sign(z) * np.square(z)
+
+
+def _expm1(x):
+    z = _bounded_z(x)
+    return np.sign(z) * np.expm1(np.abs(z))
+
+
+def _extreme_outlier(x):
+    """Standardize, then scale a random 0.5-2% of rows by 15-30x."""
+    z = _standardize(x)
+    n = len(z)
+    n_extreme = max(1, int(n * np.random.uniform(0.005, 0.02)))
+    idx = np.random.choice(n, n_extreme, replace=False)
+    factor = np.random.uniform(15.0, 30.0)
+    out = z.copy()
+    out[idx] = out[idx] * factor
+    return out
+
+
 COLUMN_TRANSFORM_REGISTRY: dict[str, callable] = {
     "identity": lambda x: x,
     "rank_uniform": lambda x: (np.argsort(np.argsort(x)) + 1) / (len(x) + 1),
     "log": lambda x: np.sign(x) * np.log1p(np.abs(x)),
     "sqrt": lambda x: np.sign(x) * np.sqrt(np.abs(x)),
-    "standardize": lambda x: (x - x.mean()) / max(x.std(), 1e-8),
+    "standardize": _standardize,
+    "threshold": _threshold,
+    "square": _square,
+    "expm1": _expm1,
+    "extreme_outlier": _extreme_outlier,
 }
 
 
@@ -124,6 +164,22 @@ class SyntheticDataset(Dataset):
                 df[col_name] = col_transform(df[col_name].values).astype(float)
         return df
 
+    def apply_zero_inflation(self, df, pkey_col, fkey_cols):
+        """Clip float columns below a sampled quantile to zero."""
+        prob = self.config.database_params.zero_inflation_col_prob
+        if prob <= 0.0:
+            return df
+        for col_name, _type in df.dtypes.items():
+            if col_name in [pkey_col, *fkey_cols, "date"] or _type not in [float]:
+                continue
+            if np.random.rand() >= prob:
+                continue
+            q = float(self.config.database_params.zero_inflation_quantile_choices.sample_uniform())
+            values = df[col_name].values
+            threshold = np.quantile(values, q)
+            df[col_name] = np.maximum(values - threshold, 0).astype(float)
+        return df
+
     def implant_nan(self, df, pkey_col, fkey_cols):
         nan_perc = self.config.database_params.column_nan_perc_choices.sample_uniform()
         num_nan_cells = int(np.floor(nan_perc * len(df)))
@@ -133,22 +189,39 @@ class SyntheticDataset(Dataset):
                 df.loc[nan_cells_idx, col_name] = np.nan
         return df
 
-    def process_categorical_data(self, df, feature_columns, pkey_col, fkey_cols):
-        """As of now only binary classification is supported, so we need to convert int columns for categorical data into boolean."""
+    def binarize_columns(self, df, feature_columns, pkey_col, fkey_cols):
+        """Collapse int categoricals to ``value > 0`` and threshold float
+        columns at a sampled quantile; runs before ``implant_nan``."""
+        binarize = self.config.scm_params.binarize_int_categoricals
+        bool_prob = self.config.database_params.bool_col_prob
         for col_name, _type in df.dtypes.items():
-            if col_name not in [pkey_col, *fkey_cols] and _type in [int]:
-                feature_column_info = feature_columns[col_name]
-                categories = feature_column_info["categories"]
-                if not categories:
+            if col_name in [pkey_col, *fkey_cols]:
+                continue
+            if _type in [int] and binarize:
+                categories = feature_columns[col_name]["categories"]
+                if not categories or type(categories[0]) != int:
                     continue
-                # convert all numeric categorical columns into boolean
-                if type(categories[0]) == int:
-                    df[col_name] = (df[col_name] > 0).astype(bool)
-                    # drop columns which only have True/False values.
-                    if len(df[col_name].unique()) == 1:
-                        df.drop(columns=[col_name], inplace=True)
-                elif type(categories[0]) == str:
-                    df[col_name] = df[col_name].map(lambda i: categories[i])
+                df[col_name] = (df[col_name] > 0).astype(bool)
+                if len(df[col_name].unique()) == 1:
+                    df.drop(columns=[col_name], inplace=True)
+            elif _type in [float] and bool_prob > 0.0 and np.random.rand() < bool_prob:
+                q = float(
+                    self.config.database_params.bool_threshold_quantile_choices.sample_uniform()
+                )
+                values = df[col_name].values
+                threshold = np.quantile(values, q)
+                df[col_name] = (values > threshold).astype(bool)
+        return df
+
+    def materialize_string_categoricals(self, df, feature_columns, pkey_col, fkey_cols):
+        """Map int-coded categorical columns to their string labels."""
+        for col_name, _type in df.dtypes.items():
+            if col_name in [pkey_col, *fkey_cols] or _type not in [int]:
+                continue
+            categories = feature_columns[col_name]["categories"]
+            if not categories or type(categories[0]) != str:
+                continue
+            df[col_name] = df[col_name].map(lambda i: categories[i])
         return df
 
     def make_db(self) -> Database:
@@ -229,14 +302,23 @@ class SyntheticDataset(Dataset):
             df = self.apply_col_transforms(
                 df=df, pkey_col=pkey_col, fkey_cols=list(fkey_col_to_pkey_table.keys())
             )
-            df = self.implant_nan(
+            df = self.apply_zero_inflation(
                 df=df, pkey_col=pkey_col, fkey_cols=list(fkey_col_to_pkey_table.keys())
             )
-            df = self.process_categorical_data(
+            df = self.binarize_columns(
                 df=df,
                 feature_columns=feature_columns,
                 pkey_col=pkey_col,
                 fkey_cols=list(fkey_col_to_pkey_table.keys()),
+            )
+            df = self.materialize_string_categoricals(
+                df=df,
+                feature_columns=feature_columns,
+                pkey_col=pkey_col,
+                fkey_cols=list(fkey_col_to_pkey_table.keys()),
+            )
+            df = self.implant_nan(
+                df=df, pkey_col=pkey_col, fkey_cols=list(fkey_col_to_pkey_table.keys())
             )
             ##########################################
             time_col = "date" if "date" in df.columns else None
